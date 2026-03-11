@@ -475,14 +475,17 @@ function softRefresh(p){
     var obs=getCK(inp.dataset.key).obs||'';
     if(document.activeElement!==inp) inp.value=obs;
   }
-  // Update tab % for all areas
+  // Update tab % and NC counters for ALL areas (not just active tab)
   var tabs=document.querySelectorAll('.area-tab:not(.add-tab)');
   for(var i=0;i<tabs.length;i++){
     if(p.areas[i]){
-      tabs[i].querySelector('.tab-pct').textContent=getAPct(p.id,p.areas[i])+'%';
+      var pct=getAPct(p.id,p.areas[i]);
+      var tpct=tabs[i].querySelector('.tab-pct');
+      if(tpct) tpct.textContent=pct+'%';
       updateAreaNC(p.id,p.areas[i]);
     }
   }
+  updateHero(p);
 }
 
 function startListening(){
@@ -506,7 +509,12 @@ function startListening(){
     renderOVCards();
     if(curProjId){
       var p=getP(curProjId);
-      if(p){ softRefresh(p); updateHero(p); }
+      if(p){
+        var panelsExist=document.querySelectorAll('.area-panel').length>0;
+        if(panelsExist){ softRefresh(p); } else { renderTabs(p); }
+        updateHero(p);
+        renderGallery(curProjId);
+      }
     }
   }, function(err){
     setSyncStatus('red','Sin conexion');
