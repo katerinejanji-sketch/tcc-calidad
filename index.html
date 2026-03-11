@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>TCC — Sistema de Control de Calidad</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Mono:wght@300;400;500&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Firebase CDN compat version (no modules needed) -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
 :root{--ink:#0f0f0d;--paper:#f5f0e8;--cream:#ede8db;--gold:#c9973a;--gold-light:#e8c97a;--rust:#8b3a2a;--sage:#4a5e4a;--ok:#2d6a4f;--nc-c:#8b3a2a;--line:#d4cfc4;}
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -42,14 +45,12 @@ body{background:var(--paper);color:var(--ink);font-family:'Instrument Sans',sans
 .tb-right{display:flex;gap:8px;align-items:center;}
 .tbtn{background:transparent;border:1px solid #2a2a28;color:#777;padding:5px 14px;font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;transition:all .15s;}
 .tbtn:hover{border-color:#555;color:var(--paper);}
-.tbtn.gold{background:var(--gold);color:var(--ink);border-color:var(--gold);}
-.tbtn.gold:hover{background:var(--paper);}
 .sync-dot{width:8px;height:8px;border-radius:50%;background:#555;display:inline-block;margin-right:4px;transition:background .3s;}
 .sync-dot.green{background:#4caf50;}
 .sync-dot.yellow{background:#ff9800;animation:pulse 1s infinite;}
 .sync-dot.red{background:var(--rust);}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
-.sync-label{font-family:'DM Mono',monospace;font-size:8px;color:#555;letter-spacing:.08em;text-transform:uppercase;}
+.sync-label{font-family:'DM Mono',monospace;font-size:8px;color:#666;letter-spacing:.08em;text-transform:uppercase;}
 .screen{display:none;}
 .screen.active{display:block;}
 .ov-wrap{padding:44px 36px;max-width:1320px;}
@@ -206,16 +207,14 @@ body{background:var(--paper);color:var(--ink);font-family:'Instrument Sans',sans
 .aai-row button{background:var(--gold);border:none;color:var(--ink);padding:9px 16px;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.12em;text-transform:uppercase;cursor:pointer;}
 .aai-cancel{background:none;border:none;font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:#888;cursor:pointer;padding:0;}
 .aai-cancel:hover{color:var(--ink);}
-.toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:var(--paper);padding:10px 20px;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;z-index:900;opacity:0;transform:translateY(10px);transition:all .3s;pointer-events:none;}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--ink);color:var(--paper);padding:10px 20px;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;z-index:900;opacity:0;transform:translateY(10px);transition:all .3s;pointer-events:none;border-left:3px solid var(--gold);}
 .toast.show{opacity:1;transform:translateY(0);}
-.toast.green{border-left:3px solid #4caf50;}
-.toast.yellow{border-left:3px solid #ff9800;}
+.toast.err{border-left-color:var(--rust);}
 @media print{.sidebar,.topbar,.area-tabs,.gallery-bar{display:none !important;}.pw{margin-left:0 !important;}.area-panel{display:block !important;}body{background:white;}}
 @media(max-width:900px){.sidebar{width:52px;}.sb-text,.pj-info,.sb-sect{display:none;}.pw{margin-left:52px;}.d-main,.ov-wrap{padding:20px;}.topbar,.gallery-bar{padding-left:20px;padding-right:20px;}.firma-grid{grid-template-columns:1fr;}}
 </style>
 </head>
 <body>
-
 <aside class="sidebar" id="sidebar">
   <button class="sb-tog" onclick="toggleSB()">&#8249;</button>
   <div class="sb-logo">
@@ -226,7 +225,6 @@ body{background:var(--paper);color:var(--ink);font-family:'Instrument Sans',sans
   <div class="proj-list" id="projList"></div>
   <button class="sb-add" onclick="openProjModal()">+ Nuevo Proyecto</button>
 </aside>
-
 <div class="pw" id="pw">
   <div class="topbar">
     <div class="tb-left">
@@ -239,7 +237,6 @@ body{background:var(--paper);color:var(--ink);font-family:'Instrument Sans',sans
       <button class="tbtn" onclick="window.print()" style="margin-left:12px">Imprimir</button>
     </div>
   </div>
-
   <div class="screen active" id="scrOV">
     <div class="ov-wrap">
       <div class="ov-title">Sistema de Control<br><span>de Calidad</span></div>
@@ -247,7 +244,6 @@ body{background:var(--paper);color:var(--ink);font-family:'Instrument Sans',sans
       <div class="pj-cards" id="ovCards"></div>
     </div>
   </div>
-
   <div class="screen" id="scrDetail">
     <div class="d-hero">
       <div class="d-hero-inner">
@@ -276,7 +272,6 @@ body{background:var(--paper);color:var(--ink);font-family:'Instrument Sans',sans
     </div>
   </div>
 </div>
-
 <div class="lightbox" id="lightbox">
   <button class="lb-close" onclick="closeLB()">&#10005;</button>
   <img class="lb-img" id="lbImg" src="" alt="">
@@ -286,13 +281,12 @@ body{background:var(--paper);color:var(--ink);font-family:'Instrument Sans',sans
     <button onclick="lbNav(1)">Siguiente &#8594;</button>
   </div>
 </div>
-
 <div class="modal-overlay" id="projModal">
   <div class="modal-box">
     <div class="modal-hd"><h3 id="projModalTitle">Nuevo Proyecto</h3><button class="modal-x" onclick="closeProjModal()">&#10005;</button></div>
     <div class="modal-bd">
       <input type="hidden" id="editProjId">
-      <div class="ff"><label>Codigo del Proyecto *</label><input type="text" id="fCode" placeholder="Ej: WK, PT-02" style="text-transform:uppercase"></div>
+      <div class="ff"><label>Codigo *</label><input type="text" id="fCode" placeholder="Ej: WK, PT-02" style="text-transform:uppercase"></div>
       <div class="ff"><label>Nombre / Descripcion</label><input type="text" id="fDesc" placeholder="Ej: Apartamento Colinas de Bello Monte"></div>
       <div class="ff"><label>Ubicacion</label><input type="text" id="fUbic" placeholder="Ej: Caracas, Las Mercedes"></div>
       <div class="ff">
@@ -311,7 +305,6 @@ body{background:var(--paper);color:var(--ink);font-family:'Instrument Sans',sans
     </div>
   </div>
 </div>
-
 <div class="aai-overlay" id="aaiOverlay">
   <div class="aai-box">
     <h4>Nueva Area</h4>
@@ -323,17 +316,12 @@ body{background:var(--paper);color:var(--ink);font-family:'Instrument Sans',sans
     <button class="aai-cancel" onclick="closeAAI()">&#10005; Cancelar</button>
   </div>
 </div>
-
 <div class="toast" id="toast"></div>
-
-<!-- Firebase SDK -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getDatabase, ref, set, get, update, remove, onValue, off }
-  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-
-// ── CONFIG ──────────────────────────────────────────────
-const firebaseConfig = {
+<script>
+// ================================================================
+// FIREBASE INIT (compat SDK - no modules)
+// ================================================================
+var firebaseConfig = {
   apiKey: "AIzaSyBn3JkFaIZXfmjWn-N9l7-A0NgDn9aM9xQ",
   authDomain: "tcc-calidad-e50ee.firebaseapp.com",
   databaseURL: "https://tcc-calidad-e50ee-default-rtdb.firebaseio.com",
@@ -342,35 +330,36 @@ const firebaseConfig = {
   messagingSenderId: "999913832195",
   appId: "1:999913832195:web:7fa74f367fbed1000ef336"
 };
+firebase.initializeApp(firebaseConfig);
+var db = firebase.database();
 
-const app = initializeApp(firebaseConfig);
-const db  = getDatabase(app);
-
-// ── FASES DATA ───────────────────────────────────────────
-const FASES = [
+// ================================================================
+// FASES DATA
+// ================================================================
+var FASES = [
   {id:'F1',label:'01 - Diseno y Modelado (Spazio 3D)',items:[
-    {n:'1.1',c:'Coherencia modelo 3D vs. planos aprobados',s:'El modelo 3D reproduce fielmente los planos. Todas las cotas principales coinciden.',v:'Superposicion digital plano vs. modelo. Revision por Arq. Responsable.',x:'CRITICO'},
+    {n:'1.1',c:'Coherencia modelo 3D vs. planos aprobados',s:'El modelo 3D reproduce fielmente los planos. Todas las cotas coinciden.',v:'Superposicion digital plano vs. modelo. Revision por Arq. Responsable.',x:'CRITICO'},
     {n:'1.2',c:'Verificacion de medidas reales vs. modelo',s:'Tolerancia maxima +-2 mm. Ref. UNI EN 1116.',v:'Flexometro digital (+-0,5 mm). Minimo 3 mediciones por cota.',x:'CRITICO'},
     {n:'1.3',c:'Asignacion correcta de materiales y acabados',s:'Cada pieza con material, acabado, color, canto y espesor conforme a ficha aprobada.',v:'Revision lista de materiales Spazio 3D vs. ficha de proyecto.',x:'MAYOR'},
-    {n:'1.4',c:'Despiece optimizado para corte CNC',s:'Aprovechamiento del tablero >=85%. Respeta orientacion de veta. Piezas numeradas.',v:'Revision del plano de corte. Calculo de % de aprovechamiento.',x:'MAYOR'},
-    {n:'1.5',c:'Validacion de interferencias con instalaciones',s:'Cero conflictos con puntos electricos, sanitarios, HVAC. Holguras minimas 10 mm.',v:'Cruce del modelo con planos de instalaciones. Verificacion fisica en sitio.',x:'CRITICO'},
-    {n:'1.6',c:'Aprobacion de Direccion Creativa',s:'Firma de conformidad sobre diseno estetico, funcional y tecnico antes de fabricar.',v:'Documento de aprobacion firmado. Fecha y nombre del aprobador registrados.',x:'CRITICO'}
+    {n:'1.4',c:'Despiece optimizado para corte CNC',s:'Aprovechamiento del tablero >=85%. Respeta orientacion de veta.',v:'Revision del plano de corte. Calculo de aprovechamiento.',x:'MAYOR'},
+    {n:'1.5',c:'Validacion de interferencias con instalaciones',s:'Cero conflictos con electrico, sanitario, HVAC. Holguras minimas 10 mm.',v:'Cruce del modelo con planos de instalaciones.',x:'CRITICO'},
+    {n:'1.6',c:'Aprobacion de Direccion Creativa',s:'Firma de conformidad sobre diseno antes de fabricar.',v:'Documento de aprobacion firmado. Fecha y nombre registrados.',x:'CRITICO'}
   ]},
   {id:'F2',label:'02 - Replanteo en Sitio',items:[
-    {n:'2.1',c:'3 mediciones minimas por cota critica',s:'Desviacion entre mediciones <=1 mm',v:'Flexometro digital o medidor laser',x:'CRITICO'},
+    {n:'2.1',c:'3 mediciones minimas por cota critica',s:'Desviacion <=1 mm',v:'Flexometro digital o medidor laser',x:'CRITICO'},
     {n:'2.2',c:'Escuadras de vanos verificadas',s:'Desviacion <=2 mm/m lineal',v:'Escuadra 600 mm + medidor laser',x:'CRITICO'},
     {n:'2.3',c:'Diagonales de vanos medidas',s:'Diferencia de diagonales <=3 mm',v:'Flexometro cruzado',x:'CRITICO'},
     {n:'2.4',c:'Plomo de paredes verificado',s:'<=2 mm/m de altura',v:'Nivel laser autonivelante',x:'CRITICO'},
     {n:'2.5',c:'Nivel de piso verificado',s:'<=3 mm en 2 m',v:'Nivel laser autonivelante',x:'CRITICO'},
-    {n:'2.6',c:'Desviaciones registradas y documentadas',s:'Formulario completo con croquis y propuesta de ajuste',v:'Formulario + fotografia con flexometro',x:'MAYOR'},
-    {n:'2.7',c:'Puntos criticos de ajuste identificados',s:'Zonas de ajuste in situ marcadas y documentadas',v:'Marca fisica (cinta) + registro fotografico',x:'MAYOR'},
+    {n:'2.6',c:'Desviaciones registradas y documentadas',s:'Formulario completo con croquis y propuesta de ajuste',v:'Formulario + fotografia',x:'MAYOR'},
+    {n:'2.7',c:'Puntos criticos de ajuste identificados',s:'Zonas de ajuste marcadas y documentadas',v:'Marca fisica + registro fotografico',x:'MAYOR'},
     {n:'2.8',c:'Documentacion fotografica con medidas',s:'1 foto/pared con medidas visibles',v:'Camara con app de medicion',x:'MENOR'},
     {n:'2.9',c:'Interferencias con instalaciones verificadas en sitio',s:'Cero conflictos no resueltos',v:'Verificacion fisica cruzada con modelo',x:'CRITICO'},
     {n:'2.10',c:'Acta de replanteo firmada',s:'Firma del Arq. Responsable - sin firma no se fabrica',v:'Acta impresa + copia digital',x:'CRITICO'}
   ]},
   {id:'F3',label:'03 - Fabricacion',items:[
     {n:'3.1',c:'Precision de corte CNC',s:'Tolerancia +-0,3 mm. Cortes limpios, sin astillado.',v:'Calibrador digital 0,01 mm - 3 piezas/lote',x:'CRITICO'},
-    {n:'3.2',c:'Calidad de canteado: adherencia',s:'Sin despegue al test manual',v:'Inspeccion tactil 100% + prueba de despegue',x:'CRITICO'},
+    {n:'3.2',c:'Calidad de canteado: adherencia',s:'Sin despegue al test manual',v:'Inspeccion tactil 100%',x:'CRITICO'},
     {n:'3.3',c:'Calidad de canteado: alineacion',s:'+-0,2 mm canto-tablero',v:'Calibrador digital',x:'CRITICO'},
     {n:'3.4',c:'Calidad de canteado: acabado tactil',s:'Sin residuos de adhesivo',v:'Inspeccion tactil',x:'CRITICO'},
     {n:'3.5',c:'Perforaciones: posicion',s:'+-0,3 mm vs. plano',v:'Calibrador + plantilla',x:'CRITICO'},
@@ -379,39 +368,39 @@ const FASES = [
     {n:'3.8',c:'Humedad del tablero',s:'<=12%',v:'Higrometro digital',x:'MAYOR'},
     {n:'3.9',c:'Superficies: inspeccion visual a 50 cm',s:'Cero defectos visibles a 50 cm',v:'Inspeccion bajo luz directa e indirecta',x:'MAYOR'},
     {n:'3.10',c:'Superficies: luz rasante 45 grados',s:'Cero imperfecciones detectadas',v:'Luz rasante directa',x:'MAYOR'},
-    {n:'3.11',c:'Trazabilidad: etiquetado de piezas',s:'100% piezas con codigo: proyecto / pieza / lote / fecha',v:'Verificacion 100% vs. registro digital',x:'MAYOR'},
+    {n:'3.11',c:'Trazabilidad: etiquetado de piezas',s:'100% piezas con codigo',v:'Verificacion 100% vs. registro digital',x:'MAYOR'},
     {n:'3.12',c:'Aprovechamiento de tablero',s:'>=85% del area del tablero',v:'Calculo de aprovechamiento documentado',x:'MAYOR'}
   ]},
   {id:'F4',label:'04 - Pre-Ensamblaje en Taller',items:[
-    {n:'4.1',c:'Ensamblaje de prueba completo',s:'100% piezas ensamblan sin forzar. Uniones cierran.',v:'Ensamblaje fisico verificado por Maestro y Arq.',x:'CRITICO'},
-    {n:'4.2',c:'Escuadras en cuerpos armados',s:'Diagonales +-1 mm. Angulos rectos verificados.',v:'Flexometro + diagonales cruzadas',x:'CRITICO'},
-    {n:'4.3',c:'Bisagras: apertura y cierre suave',s:'5 ciclos apertura/cierre sin anomalia',v:'5 ciclos por herraje',x:'MAYOR'},
-    {n:'4.4',c:'Correderas: operacion completa',s:'Apertura total, cierre suave, sin bamboleo',v:'5 ciclos de prueba',x:'MAYOR'},
-    {n:'4.5',c:'Sistemas de elevacion: operacion',s:'Apertura controlada, retencion activa, sin caida libre',v:'Prueba funcional completa',x:'MAYOR'},
+    {n:'4.1',c:'Ensamblaje de prueba completo',s:'100% piezas ensamblan sin forzar.',v:'Ensamblaje fisico verificado.',x:'CRITICO'},
+    {n:'4.2',c:'Escuadras en cuerpos armados',s:'Diagonales +-1 mm.',v:'Flexometro + diagonales cruzadas',x:'CRITICO'},
+    {n:'4.3',c:'Bisagras: apertura y cierre suave',s:'5 ciclos sin anomalia',v:'5 ciclos por herraje',x:'MAYOR'},
+    {n:'4.4',c:'Correderas: operacion completa',s:'Apertura total, cierre suave',v:'5 ciclos de prueba',x:'MAYOR'},
+    {n:'4.5',c:'Sistemas de elevacion: operacion',s:'Retencion activa, sin caida libre',v:'Prueba funcional completa',x:'MAYOR'},
     {n:'4.6',c:'Alineacion de frentes',s:'Separaciones uniformes +-0,5 mm',v:'Galga de espesores + nivel 300 mm',x:'MAYOR'},
     {n:'4.7',c:'Entrepanos nivelados',s:'Burbuja centrada en nivel 300 mm',v:'Nivel 300 mm',x:'MAYOR'},
-    {n:'4.8',c:'Numeracion y codificacion para transporte',s:'100% piezas numeradas segun plano de montaje',v:'Cruce etiquetas vs. plano',x:'MENOR'},
+    {n:'4.8',c:'Numeracion y codificacion para transporte',s:'100% piezas numeradas segun plano',v:'Cruce etiquetas vs. plano',x:'MENOR'},
     {n:'4.9',c:'Embalaje protector',s:'Cantos y superficies vistas protegidos',v:'Inspeccion visual pieza por pieza',x:'MENOR'}
   ]},
   {id:'F5',label:'05 - Instalacion de Cuerpos',items:[
     {n:'5.1',c:'Nivelacion de modulos',s:'Burbuja centrada, nivel 600 mm',v:'Nivel burbuja 600 mm + nivel laser',x:'CRITICO'},
     {n:'5.2',c:'Aplomado de modulos',s:'<=1 mm/m con nivel laser',v:'Nivel laser de linea cruzada',x:'CRITICO'},
-    {n:'5.3',c:'Tipo de anclaje correcto segun material',s:'Expansion (concreto) / Toggler (drywall) / Tirafondo (madera)',v:'Verificacion tipo de anclaje vs. material base',x:'CRITICO'},
-    {n:'5.4',c:'Resistencia de anclajes',s:'Prueba de arranque 1 de cada 5 anclajes',v:'Prueba de arranque manual',x:'CRITICO'},
-    {n:'5.5',c:'Separacion entre modulos',s:'+-0,5 mm constante en 3 puntos por junta',v:'Galga de espesores calibrada',x:'MAYOR'},
+    {n:'5.3',c:'Tipo de anclaje correcto segun material',s:'Expansion / Toggler / Tirafondo segun base',v:'Verificacion tipo anclaje vs. material',x:'CRITICO'},
+    {n:'5.4',c:'Resistencia de anclajes',s:'Prueba de arranque 1 de cada 5',v:'Prueba de arranque manual',x:'CRITICO'},
+    {n:'5.5',c:'Separacion entre modulos',s:'+-0,5 mm constante en 3 puntos',v:'Galga de espesores calibrada',x:'MAYOR'},
     {n:'5.6',c:'Alineacion horizontal y vertical con laser',s:'<=0,5 mm/m lineal',v:'Nivel laser de linea cruzada',x:'MAYOR'},
-    {n:'5.7',c:'Dilataciones consideradas',s:'2 mm / 5 mm / 9 mm segun diseno aprobado',v:'Verificacion con galga',x:'MAYOR'},
-    {n:'5.8',c:'Proteccion de superficies instaladas',s:'Carton/plastico inmediato tras instalar',v:'Inspeccion visual durante proceso',x:'MENOR'},
-    {n:'5.9',c:'Limpieza progresiva del area de trabajo',s:'Area libre de escombros al finalizar cada fase',v:'Inspeccion visual',x:'MENOR'}
+    {n:'5.7',c:'Dilataciones consideradas',s:'2 mm / 5 mm / 9 mm segun diseno',v:'Verificacion con galga',x:'MAYOR'},
+    {n:'5.8',c:'Proteccion de superficies instaladas',s:'Carton/plastico inmediato',v:'Inspeccion visual',x:'MENOR'},
+    {n:'5.9',c:'Limpieza progresiva del area',s:'Area libre de escombros al finalizar fase',v:'Inspeccion visual',x:'MENOR'}
   ]},
   {id:'F6',label:'06 - Herrajes y Sistemas',items:[
-    {n:'6.1',c:'Bisagra seleccionada segun peso de puerta',s:'Seleccion por tabla Anexo A',v:'Pesaje con bascula + tabla de seleccion',x:'CRITICO'},
-    {n:'6.2',c:'Calibracion 3D bisagras: altura',s:'+-0,5 mm',v:'Destornillador + galga de espesores',x:'MAYOR'},
+    {n:'6.1',c:'Bisagra seleccionada segun peso de puerta',s:'Seleccion por tabla Anexo A',v:'Pesaje con bascula + tabla',x:'CRITICO'},
+    {n:'6.2',c:'Calibracion 3D bisagras: altura',s:'+-0,5 mm',v:'Destornillador + galga',x:'MAYOR'},
     {n:'6.3',c:'Calibracion 3D bisagras: profundidad',s:'+-0,5 mm',v:'Galga de espesores',x:'MAYOR'},
     {n:'6.4',c:'Calibracion 3D bisagras: lateralidad',s:'+-0,5 mm',v:'Verificacion visual + galga',x:'MAYOR'},
-    {n:'6.5',c:'Correderas: capacidad vs. peso real',s:'Capacidad >=20% sobre carga real',v:'Pesaje + especificacion del fabricante',x:'MAYOR'},
+    {n:'6.5',c:'Correderas: capacidad vs. peso real',s:'Capacidad >=20% sobre carga real',v:'Pesaje + especificacion fabricante',x:'MAYOR'},
     {n:'6.6',c:'Correderas: apertura total y cierre suave',s:'5 ciclos sin anomalia',v:'5 ciclos de prueba',x:'MAYOR'},
-    {n:'6.7',c:'Sistemas de elevacion: tension calibrada',s:'Retencion en posicion abierta. Sin caida libre.',v:'Prueba funcional completa',x:'CRITICO'},
+    {n:'6.7',c:'Sistemas de elevacion: tension calibrada',s:'Retencion en posicion abierta.',v:'Prueba funcional completa',x:'CRITICO'},
     {n:'6.8',c:'Sistemas de elevacion: retencion en abierto',s:'Sin caida libre',v:'Prueba funcional',x:'CRITICO'},
     {n:'6.9',c:'Cerraduras: alineacion y firmeza',s:'Sin juego, operacion silenciosa',v:'Verificacion visual + prueba manual',x:'MENOR'},
     {n:'6.10',c:'Tiradores: alineacion simetrica',s:'Centrado respecto al frente',v:'Medicion + verificacion visual',x:'MENOR'},
@@ -424,522 +413,492 @@ const FASES = [
     {n:'7.3',c:'Cajones: apertura y cierre (5 ciclos)',s:'Apertura total, cierre suave',v:'Prueba manual',x:'CRITICO'},
     {n:'7.4',c:'Sistemas de elevacion: operacion',s:'Apertura controlada, retencion activa',v:'Prueba funcional',x:'CRITICO'},
     {n:'7.5',c:'Cerraduras: operacion',s:'Mecanismo suave, sin juego',v:'Prueba manual',x:'MAYOR'},
-    {n:'7.6',c:'Iluminacion: encendido completo',s:'100% puntos encendidos, uniforme',v:'Prueba de encendido',x:'MAYOR'},
-    {n:'7.7',c:'Inspeccion con luz rasante 45 grados',s:'Cero imperfecciones en superficies expuestas',v:'Linterna LED a menos de 30 cm',x:'MAYOR'},
+    {n:'7.6',c:'Iluminacion: encendido completo',s:'100% puntos encendidos',v:'Prueba de encendido',x:'MAYOR'},
+    {n:'7.7',c:'Inspeccion con luz rasante 45 grados',s:'Cero imperfecciones en superficies expuestas',v:'Linterna LED a menos 30 cm',x:'MAYOR'},
     {n:'7.8',c:'Separaciones entre puertas uniformes',s:'+-0,5 mm en 3 puntos',v:'Galga de espesores',x:'MAYOR'},
-    {n:'7.9',c:'Test de carga: entrepanos',s:'15 kg/m sin flexion visible',v:'Carga progresiva con pesas calibradas',x:'MAYOR'},
-    {n:'7.10',c:'Test de carga: barras de closet',s:'20 kg/m sin flexion visible',v:'Carga progresiva con pesas calibradas',x:'MAYOR'},
-    {n:'7.11',c:'Limpieza final: superficies',s:'Pano blanco limpio al pasar',v:'Inspeccion visual + prueba de pano',x:'MENOR'},
+    {n:'7.9',c:'Test de carga: entrepanos',s:'15 kg/m sin flexion visible',v:'Carga progresiva con pesas',x:'MAYOR'},
+    {n:'7.10',c:'Test de carga: barras de closet',s:'20 kg/m sin flexion visible',v:'Carga progresiva con pesas',x:'MAYOR'},
+    {n:'7.11',c:'Limpieza final: superficies',s:'Pano blanco limpio al pasar',v:'Inspeccion visual',x:'MENOR'},
     {n:'7.12',c:'Limpieza final: juntas y siliconas',s:'Sin residuos ni excesos',v:'Inspeccion visual',x:'MENOR'},
     {n:'7.13',c:'Limpieza final: vidrios y espejos',s:'Sin huellas ni manchas',v:'Inspeccion visual',x:'MENOR'},
     {n:'7.14',c:'Acta de entrega preparada',s:'Datos completos, fotos adjuntas',v:'Revision de documento',x:'CRITICO'},
     {n:'7.15',c:'Firma del cliente obtenida',s:'Acta firmada por todas las partes',v:'Documento formal + fotos archivadas',x:'CRITICO'}
   ]}
 ];
-const TOTAL = FASES.reduce((s,f) => s + f.items.length, 0);
+var TOTAL = 0;
+for(var _f=0;_f<FASES.length;_f++) TOTAL += FASES[_f].items.length;
 
-// ── STATE ────────────────────────────────────────────────
-let DB = { projects: [], checklist: {}, images: {} };
-let curProjId = null;
-let modalTags = [];
-let lbPid = null, lbIdx = 0;
-let unsub = null; // firebase listener
+// ================================================================
+// STATE
+// ================================================================
+var DB = {projects:[], checklist:{}, images:{}};
+var curProjId = null;
+var modalTags = [];
+var lbPid = null, lbIdx = 0;
 
-// ── SYNC STATUS ──────────────────────────────────────────
-function setSyncStatus(state, text) {
-  const dot = document.getElementById('syncDot');
-  const lbl = document.getElementById('syncLabel');
-  dot.className = 'sync-dot ' + state;
-  lbl.textContent = text;
+// ================================================================
+// HELPERS
+// ================================================================
+function safeKey(s){ return s.replace(/[.#$/[\]]/g,'_').replace(/\s+/g,'_'); }
+function ckKey(pid,a,fid,n){ return safeKey(pid)+'__'+safeKey(a)+'__'+fid+'__'+n; }
+function getP(id){ for(var i=0;i<DB.projects.length;i++) if(DB.projects[i].id===id) return DB.projects[i]; return DB.projects[0]||null; }
+function getCK(key){ return DB.checklist[key]||{val:'',obs:''}; }
+
+function setSyncStatus(state,text){
+  document.getElementById('syncDot').className='sync-dot '+state;
+  document.getElementById('syncLabel').textContent=text;
+}
+function toast(msg,isErr){
+  var t=document.getElementById('toast');
+  t.textContent=msg; t.className='toast show'+(isErr?' err':'');
+  clearTimeout(t._t); t._t=setTimeout(function(){ t.classList.remove('show'); },2800);
 }
 
-// ── TOAST ────────────────────────────────────────────────
-function toast(msg, type) {
-  const t = document.getElementById('toast');
-  t.textContent = msg;
-  t.className = 'toast show ' + (type || 'green');
-  clearTimeout(t._tid);
-  t._tid = setTimeout(() => t.classList.remove('show'), 2800);
-}
-
-// ── FIREBASE LISTENER — real-time sync ───────────────────
-function startListening() {
-  setSyncStatus('yellow', 'Conectando...');
-  const r = ref(db, 'tcc');
-  onValue(r, (snap) => {
-    const data = snap.val();
-    if (data) {
+// ================================================================
+// FIREBASE — real-time listener
+// ================================================================
+function startListening(){
+  setSyncStatus('yellow','Conectando...');
+  db.ref('tcc').on('value', function(snap){
+    var data = snap.val();
+    if(data){
       DB.projects  = data.projects  || [];
       DB.checklist = data.checklist || {};
       DB.images    = data.images    || {};
     } else {
-      // Primera vez: sembrar proyecto WK
       DB = {
-        projects: [{
-          id: 'proj-wk', code: 'WK', desc: 'Proyecto WK', ubic: '',
-          areas: ['Habitacion Principal','Vestier Principal','Habitacion Emma','Vestier Emma','Habitacion Emiliano']
-        }],
-        checklist: {},
-        images: {}
+        projects:[{id:'proj-wk',code:'WK',desc:'Proyecto WK',ubic:'',
+          areas:['Habitacion Principal','Vestier Principal','Habitacion Emma','Vestier Emma','Habitacion Emiliano']}],
+        checklist:{}, images:{}
       };
-      pushToDB();
+      db.ref('tcc').set(DB);
     }
-    setSyncStatus('green', 'Conectado');
+    setSyncStatus('green','Conectado');
     renderSB();
     renderOVCards();
-    if (curProjId) {
-      const p = getP(curProjId);
-      if (p) { renderTabs(p); updateHero(p); renderGallery(curProjId); }
+    if(curProjId){
+      var p=getP(curProjId);
+      if(p){ renderTabs(p); updateHero(p); renderGallery(curProjId); }
     }
-  }, (err) => {
-    setSyncStatus('red', 'Sin conexion');
-    toast('Error de conexion con Firebase', 'yellow');
+  }, function(err){
+    setSyncStatus('red','Sin conexion');
+    toast('Error: '+err.message, true);
   });
 }
 
-async function pushToDB() {
-  setSyncStatus('yellow', 'Guardando...');
-  try {
-    await set(ref(db, 'tcc'), DB);
-    setSyncStatus('green', 'Guardado');
-  } catch(e) {
-    setSyncStatus('red', 'Error al guardar');
-    toast('Error al guardar en Firebase', 'yellow');
-  }
+function patchCK(key,val,obs){
+  var patch = {};
+  patch['tcc/checklist/'+key] = {val:val||'', obs:obs||''};
+  db.ref().update(patch).catch(function(e){ toast('Error sync: '+e.message,true); });
 }
 
-async function patchChecklist(key, val, obs) {
-  const patch = {};
-  patch['tcc/checklist/' + key.replace(/\|/g,'__')] = { val: val || '', obs: obs || '' };
-  try {
-    await update(ref(db), patch);
-  } catch(e) {
-    toast('Error de sincronizacion', 'yellow');
-  }
-}
-
-// ── HELPERS ──────────────────────────────────────────────
-function ckKey(pid, a, fid, n) {
-  return (pid + '__' + a + '__' + fid + '__' + n).replace(/\s/g,'_');
-}
-function getP(id) {
-  for (let i = 0; i < DB.projects.length; i++) if (DB.projects[i].id === id) return DB.projects[i];
-  return DB.projects[0] || null;
-}
-function getCK(key) { return DB.checklist[key] || { val: '', obs: '' }; }
-
-// ── SIDEBAR ──────────────────────────────────────────────
-function toggleSB() {
+// ================================================================
+// SIDEBAR
+// ================================================================
+function toggleSB(){
   document.getElementById('sidebar').classList.toggle('col');
   document.getElementById('pw').classList.toggle('col');
 }
-function renderSB() {
-  const l = document.getElementById('projList'); l.innerHTML = '';
-  const ov = document.createElement('div');
-  ov.className = 'pj-item' + (curProjId === null ? ' active' : '');
-  ov.innerHTML = '<div class="pj-dot"></div><div class="pj-info"><div class="pj-name">Todos los proyectos</div></div>';
-  ov.onclick = () => showOV();
+function renderSB(){
+  var l=document.getElementById('projList'); l.innerHTML='';
+  var ov=document.createElement('div');
+  ov.className='pj-item'+(curProjId===null?' active':'');
+  ov.innerHTML='<div class="pj-dot"></div><div class="pj-info"><div class="pj-name">Todos los proyectos</div></div>';
+  ov.onclick=function(){ showOV(); };
   l.appendChild(ov);
-  DB.projects.forEach(p => {
-    const el = document.createElement('div');
-    el.className = 'pj-item' + (curProjId === p.id ? ' active' : '');
-    el.innerHTML = '<div class="pj-dot"></div><div class="pj-info"><div class="pj-name">' + p.code + '</div><div class="pj-sub">' + p.areas.length + ' area' + (p.areas.length !== 1 ? 's' : '') + '</div></div>';
-    el.onclick = () => showProj(p.id);
-    l.appendChild(el);
-  });
+  for(var i=0;i<DB.projects.length;i++){
+    (function(p){
+      var el=document.createElement('div');
+      el.className='pj-item'+(curProjId===p.id?' active':'');
+      el.innerHTML='<div class="pj-dot"></div><div class="pj-info"><div class="pj-name">'+p.code+'</div><div class="pj-sub">'+p.areas.length+' area'+(p.areas.length!==1?'s':'')+'</div></div>';
+      el.onclick=function(){ showProj(p.id); };
+      l.appendChild(el);
+    })(DB.projects[i]);
+  }
 }
 
-// ── SCREENS ──────────────────────────────────────────────
-function showOV() {
-  curProjId = null;
+// ================================================================
+// SCREENS
+// ================================================================
+function showOV(){
+  curProjId=null;
   document.getElementById('scrOV').classList.add('active');
   document.getElementById('scrDetail').classList.remove('active');
-  document.getElementById('tbBadge').textContent = 'TCC';
-  document.getElementById('tbTitle').textContent = 'Sistema de Control de Calidad';
+  document.getElementById('tbBadge').textContent='TCC';
+  document.getElementById('tbTitle').textContent='Sistema de Control de Calidad';
   renderSB(); renderOVCards();
 }
-function showProj(pid) {
-  curProjId = pid;
+function showProj(pid){
+  curProjId=pid;
   document.getElementById('scrOV').classList.remove('active');
   document.getElementById('scrDetail').classList.add('active');
-  const p = getP(pid);
-  document.getElementById('tbBadge').textContent = p.code;
-  document.getElementById('tbTitle').textContent = p.desc || p.code;
-  document.getElementById('dPN').textContent = p.code;
-  document.getElementById('dPS').textContent = [p.desc, p.ubic].filter(Boolean).join(' - ') || p.code;
+  var p=getP(pid);
+  document.getElementById('tbBadge').textContent=p.code;
+  document.getElementById('tbTitle').textContent=p.desc||p.code;
+  document.getElementById('dPN').textContent=p.code;
+  document.getElementById('dPS').textContent=[p.desc,p.ubic].filter(function(x){return!!x;}).join(' - ')||p.code;
   renderSB(); renderTabs(p); updateHero(p); renderGallery(pid);
 }
 
-// ── OVERVIEW CARDS ───────────────────────────────────────
-function getPStats(p) {
-  let done = 0, ncc = 0, ncm = 0;
-  const tot = TOTAL * p.areas.length;
-  p.areas.forEach(a => FASES.forEach(f => f.items.forEach(it => {
-    const v = getCK(ckKey(p.id, a, f.id, it.n)).val;
-    if (v) done++;
-    if (v === 'NC' && it.x === 'CRITICO') ncc++;
-    if (v === 'NC' && it.x === 'MAYOR')   ncm++;
-  })));
-  return { pct: tot > 0 ? Math.round((done / tot) * 100) : 0, ncc, ncm };
+// ================================================================
+// OVERVIEW
+// ================================================================
+function getPStats(p){
+  var done=0,ncc=0,ncm=0,tot=TOTAL*p.areas.length;
+  for(var ai=0;ai<p.areas.length;ai++)
+    for(var fi=0;fi<FASES.length;fi++)
+      for(var ii=0;ii<FASES[fi].items.length;ii++){
+        var v=getCK(ckKey(p.id,p.areas[ai],FASES[fi].id,FASES[fi].items[ii].n)).val;
+        if(v) done++;
+        if(v==='NC'&&FASES[fi].items[ii].x==='CRITICO') ncc++;
+        if(v==='NC'&&FASES[fi].items[ii].x==='MAYOR') ncm++;
+      }
+  return{pct:tot>0?Math.round((done/tot)*100):0,ncc:ncc,ncm:ncm};
 }
-function renderOVCards() {
-  const w = document.getElementById('ovCards'); w.innerHTML = '';
-  DB.projects.forEach(p => {
-    const s = getPStats(p);
-    const imgs = DB.images[p.id] ? Object.values(DB.images[p.id]) : [];
-    const coverHTML = imgs.length
-      ? '<img class="pj-card-cover" src="' + imgs[0].data + '" alt="cover">'
-      : '<div class="pj-card-cover-ph">Sin imagenes</div>';
-    const pills = p.areas.map(a => '<span class="area-pill">' + a + '</span>').join('');
-    const el = document.createElement('div'); el.className = 'pj-card';
-    el.innerHTML = coverHTML +
-      '<div class="pj-card-top"><div><h3>' + p.code + '</h3><div class="pj-psub">' + (p.desc || '') + '</div></div><div class="pj-pct">' + s.pct + '%</div></div>' +
-      '<div class="pj-card-body"><div class="area-pills">' + pills + '</div>' +
-      '<div class="pj-card-stats">' +
-      '<div><span class="pcs-n">' + (TOTAL * p.areas.length) + '</span><span class="pcs-l">Items</span></div>' +
-      '<div><span class="pcs-n n-rc">' + s.ncc + '</span><span class="pcs-l">NC Critico</span></div>' +
-      '<div><span class="pcs-n n-rm">' + s.ncm + '</span><span class="pcs-l">NC Mayor</span></div>' +
-      '</div></div>' +
-      '<div class="pj-card-footer"><span>' + (p.ubic || 'Sin ubicacion') + '</span>' +
-      '<button class="open-btn" id="obtn-' + p.id + '">Abrir</button></div>';
-    w.appendChild(el);
-    el.onclick = () => showProj(p.id);
-    document.getElementById('obtn-' + p.id).onclick = e => { e.stopPropagation(); showProj(p.id); };
-  });
-  const add = document.createElement('div'); add.className = 'add-card';
-  add.innerHTML = '<div class="add-icon">+</div><span>Nuevo Proyecto</span>';
-  add.onclick = () => openProjModal();
+function renderOVCards(){
+  var w=document.getElementById('ovCards'); w.innerHTML='';
+  for(var i=0;i<DB.projects.length;i++){
+    (function(p){
+      var s=getPStats(p);
+      var imgs=DB.images&&DB.images[p.id]?Object.values(DB.images[p.id]):[];
+      var coverHTML=imgs.length?'<img class="pj-card-cover" src="'+imgs[0].data+'" alt="">':'<div class="pj-card-cover-ph">Sin imagenes</div>';
+      var pills=''; for(var ai=0;ai<p.areas.length;ai++) pills+='<span class="area-pill">'+p.areas[ai]+'</span>';
+      var el=document.createElement('div'); el.className='pj-card';
+      el.innerHTML=coverHTML+
+        '<div class="pj-card-top"><div><h3>'+p.code+'</h3><div class="pj-psub">'+(p.desc||'')+'</div></div><div class="pj-pct">'+s.pct+'%</div></div>'+
+        '<div class="pj-card-body"><div class="area-pills">'+pills+'</div>'+
+        '<div class="pj-card-stats">'+
+        '<div><span class="pcs-n">'+(TOTAL*p.areas.length)+'</span><span class="pcs-l">Items</span></div>'+
+        '<div><span class="pcs-n n-rc">'+s.ncc+'</span><span class="pcs-l">NC Critico</span></div>'+
+        '<div><span class="pcs-n n-rm">'+s.ncm+'</span><span class="pcs-l">NC Mayor</span></div>'+
+        '</div></div>'+
+        '<div class="pj-card-footer"><span>'+(p.ubic||'Sin ubicacion')+'</span>'+
+        '<button class="open-btn" id="ob-'+p.id+'">Abrir</button></div>';
+      w.appendChild(el);
+      el.onclick=function(){ showProj(p.id); };
+      document.getElementById('ob-'+p.id).onclick=function(e){ e.stopPropagation(); showProj(p.id); };
+    })(DB.projects[i]);
+  }
+  var add=document.createElement('div'); add.className='add-card';
+  add.innerHTML='<div class="add-icon">+</div><span>Nuevo Proyecto</span>';
+  add.onclick=function(){ openProjModal(); };
   w.appendChild(add);
 }
 
-// ── GALLERY ──────────────────────────────────────────────
-function renderGallery(pid) {
-  const p = getP(pid);
-  document.getElementById('galLabel').textContent = p.code + (p.desc ? ' - ' + p.desc : '');
-  const strip = document.getElementById('galStrip'); strip.innerHTML = '';
-  const imgs = DB.images[pid] ? Object.values(DB.images[pid]) : [];
-  imgs.forEach((img, i) => {
-    const th = document.createElement('div'); th.className = 'gthumb';
-    th.innerHTML = '<img src="' + img.data + '" alt="' + (img.name || '') + '">'
-      + '<div class="gthumb-label">' + (img.name || 'Imagen ' + (i + 1)) + '</div>'
-      + '<button class="gthumb-del" title="Eliminar">x</button>';
-    th.querySelector('img').onclick = e => { e.stopPropagation(); openLB(pid, i); };
-    th.querySelector('.gthumb-del').onclick = e => { e.stopPropagation(); deleteImage(pid, img.id); };
-    strip.appendChild(th);
-  });
-  const btn = document.createElement('button'); btn.className = 'gadd-btn';
-  btn.innerHTML = '<span class="gadd-icon">+</span>Adjuntar';
-  btn.onclick = () => { document.getElementById('galFileInput').dataset.pid = pid; document.getElementById('galFileInput').click(); };
+// ================================================================
+// GALLERY
+// ================================================================
+function renderGallery(pid){
+  var p=getP(pid);
+  document.getElementById('galLabel').textContent=p.code+(p.desc?' - '+p.desc:'');
+  var strip=document.getElementById('galStrip'); strip.innerHTML='';
+  var imgs=DB.images&&DB.images[pid]?Object.values(DB.images[pid]):[];
+  for(var i=0;i<imgs.length;i++){
+    (function(img,idx){
+      var th=document.createElement('div'); th.className='gthumb';
+      th.innerHTML='<img src="'+img.data+'" alt="'+(img.name||'')+'"><div class="gthumb-label">'+(img.name||'Img '+(idx+1))+'</div><button class="gthumb-del">x</button>';
+      th.querySelector('img').onclick=function(e){ e.stopPropagation(); openLB(pid,idx); };
+      th.querySelector('.gthumb-del').onclick=(function(iid){ return function(e){ e.stopPropagation(); deleteImage(pid,iid); }; })(img.id);
+      strip.appendChild(th);
+    })(imgs[i],i);
+  }
+  var btn=document.createElement('button'); btn.className='gadd-btn';
+  btn.innerHTML='<span class="gadd-icon">+</span>Adjuntar';
+  btn.onclick=function(){ document.getElementById('galFileInput').dataset.pid=pid; document.getElementById('galFileInput').click(); };
   strip.appendChild(btn);
 }
-
-async function handleUpload(e) {
-  const pid = e.target.dataset.pid;
-  const files = Array.from(e.target.files);
-  if (!files.length) return;
-  toast('Subiendo ' + files.length + ' imagen(es)...', 'yellow');
-  const patch = {};
-  let pending = files.length;
-  files.forEach(file => {
-    if (!file.type.match(/^image\//)) { pending--; return; }
-    const reader = new FileReader();
-    reader.onload = async ev => {
-      const imgId = 'img-' + Date.now() + '-' + Math.random().toString(36).slice(2,6);
-      patch['tcc/images/' + pid + '/' + imgId] = {
-        id: imgId,
-        data: ev.target.result,
-        name: file.name.replace(/\.[^.]+$/, '')
+function handleUpload(e){
+  var pid=e.target.dataset.pid;
+  var files=Array.from(e.target.files);
+  if(!files.length) return;
+  toast('Subiendo '+files.length+' imagen(es)...');
+  var pending=files.length;
+  for(var i=0;i<files.length;i++){
+    (function(file){
+      if(!file.type.match(/^image\//)){pending--;return;}
+      var r=new FileReader();
+      r.onload=function(ev){
+        var imgId='img-'+Date.now()+'-'+Math.random().toString(36).slice(2,6);
+        var patch={};
+        patch['tcc/images/'+safeKey(pid)+'/'+imgId]={id:imgId,data:ev.target.result,name:file.name.replace(/\.[^.]+$/,'')};
+        db.ref().update(patch).then(function(){ toast('Imagen subida'); }).catch(function(e){ toast('Error: '+e.message,true); });
+        pending--;
       };
-      pending--;
-      if (pending === 0) {
-        try {
-          await update(ref(db), patch);
-          toast('Imagen(es) subida(s) correctamente');
-        } catch(err) {
-          toast('Error al subir imagen', 'yellow');
-        }
-      }
-    };
-    reader.readAsDataURL(file);
-  });
-  e.target.value = '';
-}
-
-async function deleteImage(pid, imgId) {
-  if (!confirm('Eliminar esta imagen?')) return;
-  try {
-    await remove(ref(db, 'tcc/images/' + pid + '/' + imgId));
-    toast('Imagen eliminada');
-  } catch(e) {
-    toast('Error al eliminar imagen', 'yellow');
+      r.readAsDataURL(file);
+    })(files[i]);
   }
+  e.target.value='';
+}
+function deleteImage(pid,imgId){
+  if(!confirm('Eliminar esta imagen?')) return;
+  db.ref('tcc/images/'+safeKey(pid)+'/'+imgId).remove().then(function(){ toast('Imagen eliminada'); }).catch(function(e){ toast('Error: '+e.message,true); });
 }
 
-// ── LIGHTBOX ─────────────────────────────────────────────
-function openLB(pid, idx) { lbPid = pid; lbIdx = idx; showLBImg(); document.getElementById('lightbox').classList.add('open'); }
-function closeLB() { document.getElementById('lightbox').classList.remove('open'); }
-function showLBImg() {
-  const imgs = DB.images[lbPid] ? Object.values(DB.images[lbPid]) : [];
-  if (!imgs.length) return;
-  lbIdx = (lbIdx + imgs.length) % imgs.length;
-  document.getElementById('lbImg').src = imgs[lbIdx].data;
-  document.getElementById('lbCap').textContent = (imgs[lbIdx].name || 'Imagen ' + (lbIdx + 1)) + '  -  ' + (lbIdx + 1) + ' / ' + imgs.length;
+// ================================================================
+// LIGHTBOX
+// ================================================================
+function openLB(pid,idx){ lbPid=pid; lbIdx=idx; showLBImg(); document.getElementById('lightbox').classList.add('open'); }
+function closeLB(){ document.getElementById('lightbox').classList.remove('open'); }
+function showLBImg(){
+  var imgs=DB.images&&DB.images[lbPid]?Object.values(DB.images[lbPid]):[];
+  if(!imgs.length) return;
+  lbIdx=(lbIdx+imgs.length)%imgs.length;
+  document.getElementById('lbImg').src=imgs[lbIdx].data;
+  document.getElementById('lbCap').textContent=(imgs[lbIdx].name||'Imagen '+(lbIdx+1))+' - '+(lbIdx+1)+' / '+imgs.length;
 }
-function lbNav(dir) { lbIdx += dir; showLBImg(); }
-document.getElementById('lightbox').addEventListener('click', e => { if (e.target === e.currentTarget) closeLB(); });
-document.addEventListener('keydown', e => {
-  if (!document.getElementById('lightbox').classList.contains('open')) return;
-  if (e.key === 'Escape') closeLB();
-  if (e.key === 'ArrowLeft') lbNav(-1);
-  if (e.key === 'ArrowRight') lbNav(1);
+function lbNav(dir){ lbIdx+=dir; showLBImg(); }
+document.getElementById('lightbox').addEventListener('click',function(e){ if(e.target===this) closeLB(); });
+document.addEventListener('keydown',function(e){
+  if(!document.getElementById('lightbox').classList.contains('open')) return;
+  if(e.key==='Escape') closeLB();
+  if(e.key==='ArrowLeft') lbNav(-1);
+  if(e.key==='ArrowRight') lbNav(1);
 });
 
-// ── AREA TABS ─────────────────────────────────────────────
-function getAPct(pid, a) {
-  let done = 0;
-  FASES.forEach(f => f.items.forEach(it => { if (getCK(ckKey(pid, a, f.id, it.n)).val) done++; }));
-  return Math.round((done / TOTAL) * 100);
+// ================================================================
+// AREA TABS
+// ================================================================
+function getAPct(pid,a){
+  var done=0;
+  for(var fi=0;fi<FASES.length;fi++)
+    for(var ii=0;ii<FASES[fi].items.length;ii++)
+      if(getCK(ckKey(pid,a,FASES[fi].id,FASES[fi].items[ii].n)).val) done++;
+  return Math.round((done/TOTAL)*100);
 }
-function renderTabs(p) {
-  const tabs = document.getElementById('areaTabs');
-  const panels = document.getElementById('areaPanels');
-  tabs.innerHTML = ''; panels.innerHTML = '';
-  p.areas.forEach((area, idx) => {
-    const pct = getAPct(p.id, area);
-    const tab = document.createElement('div');
-    tab.className = 'area-tab' + (idx === 0 ? ' active' : '');
-    tab.innerHTML = '<span>' + area + '</span><span class="tab-pct">' + pct + '%</span>';
-    tab.onclick = () => switchArea(idx, p);
-    tabs.appendChild(tab);
-    const panel = document.createElement('div');
-    panel.className = 'area-panel' + (idx === 0 ? ' active' : '');
-    panel.innerHTML = buildPanel(p.id, area);
-    panels.appendChild(panel);
-    if (idx === 0) updateAreaNC(p.id, area);
-  });
-  const addTab = document.createElement('div');
-  addTab.className = 'area-tab add-tab';
-  addTab.innerHTML = '&#65291; Area';
-  addTab.onclick = () => openAAI(p.id);
+function renderTabs(p){
+  var tabs=document.getElementById('areaTabs');
+  var panels=document.getElementById('areaPanels');
+  tabs.innerHTML=''; panels.innerHTML='';
+  for(var i=0;i<p.areas.length;i++){
+    (function(area,idx){
+      var pct=getAPct(p.id,area);
+      var tab=document.createElement('div');
+      tab.className='area-tab'+(idx===0?' active':'');
+      tab.innerHTML='<span>'+area+'</span><span class="tab-pct">'+pct+'%</span>';
+      tab.onclick=(function(i2,p2){ return function(){ switchArea(i2,p2); }; })(idx,p);
+      tabs.appendChild(tab);
+      var panel=document.createElement('div');
+      panel.className='area-panel'+(idx===0?' active':'');
+      panel.innerHTML=buildPanel(p.id,area);
+      panels.appendChild(panel);
+      if(idx===0) updateAreaNC(p.id,area);
+    })(p.areas[i],i);
+  }
+  var addTab=document.createElement('div');
+  addTab.className='area-tab add-tab';
+  addTab.innerHTML='&#65291; Area';
+  addTab.onclick=function(){ openAAI(p.id); };
   tabs.appendChild(addTab);
 }
-function switchArea(idx, p) {
-  document.querySelectorAll('.area-tab:not(.add-tab)').forEach((t, i) => t.classList.toggle('active', i === idx));
-  document.querySelectorAll('.area-panel').forEach((t, i) => t.classList.toggle('active', i === idx));
-  updateAreaNC(p.id, p.areas[idx]);
+function switchArea(idx,p){
+  var tabs=document.querySelectorAll('.area-tab:not(.add-tab)');
+  var panels=document.querySelectorAll('.area-panel');
+  for(var i=0;i<tabs.length;i++) tabs[i].classList.toggle('active',i===idx);
+  for(var i=0;i<panels.length;i++) panels[i].classList.toggle('active',i===idx);
+  updateAreaNC(p.id,p.areas[idx]);
 }
-
-function badgeCls(x) { return x === 'CRITICO' ? 'badge-C' : x === 'MAYOR' ? 'badge-M' : 'badge-N'; }
-
-function buildPanel(pid, area) {
-  const eid = area.replace(/[^a-zA-Z0-9]/g, '_');
-  let h = '<div class="nc-banner">'
-    + '<div><div class="nc-title">No Conformidades - ' + area + '</div><div class="nc-sub">Se actualiza al marcar NC</div></div>'
-    + '<div><span class="ncs-n n-crit" id="ncc-' + eid + '">0</span><span class="ncs-l">Critico</span></div>'
-    + '<div><span class="ncs-n n-may" id="ncm-' + eid + '">0</span><span class="ncs-l">Mayor</span></div>'
-    + '<div><span class="ncs-n n-men" id="ncn-' + eid + '">0</span><span class="ncs-l">Menor</span></div>'
-    + '</div>'
-    + '<div class="legend">'
-    + '<strong style="font-family:DM Mono,monospace;font-size:8px;letter-spacing:.1em;text-transform:uppercase">Criticidad:</strong>'
-    + '<span><span class="dot dot-cr"></span>Critico - Detiene obra</span>'
-    + '<span><span class="dot dot-ma"></span>Mayor - Corregir antes de avanzar</span>'
-    + '<span><span class="dot dot-me"></span>Menor - Antes de entrega</span>'
-    + '<span style="margin-left:6px;color:#888">C = Conforme | NC = No Conforme</span>'
-    + '</div>'
-    + '<div class="slabel">Checklist - ' + area + ' - ' + TOTAL + ' items - 7 Fases</div>'
-    + '<div class="twrap"><table class="ckt"><thead><tr>'
-    + '<th style="width:44px">No</th><th>Criterio</th>'
-    + '<th class="td-s">Estandar / Tolerancia</th>'
-    + '<th class="td-v">Metodo de Verificacion</th>'
-    + '<th style="width:72px">Crit.</th>'
-    + '<th style="width:58px;text-align:center">C/NC</th>'
-    + '<th>Observacion</th>'
-    + '</tr></thead><tbody>';
-  FASES.forEach(f => {
-    h += '<tr class="phdr"><td colspan="7">&#9670; ' + f.label + '</td></tr>';
-    f.items.forEach(it => {
-      const key = ckKey(pid, area, f.id, it.n);
-      const sv = getCK(key);
-      const sc = sv.val === 'C' ? ' vC' : sv.val === 'NC' ? ' vNC' : '';
-      const obs = (sv.obs || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-      h += '<tr>'
-        + '<td class="td-n">' + it.n + '</td>'
-        + '<td>' + it.c + '</td>'
-        + '<td class="td-s">' + it.s + '</td>'
-        + '<td class="td-v">' + it.v + '</td>'
-        + '<td><span class="badge ' + badgeCls(it.x) + '">' + it.x + '</span></td>'
-        + '<td style="text-align:center">'
-        + '<select class="ssel' + sc + '" data-key="' + key + '" data-crit="' + it.x + '" data-pid="' + pid + '" data-area="' + area + '" onchange="onSel(this)">'
-        + '<option value="">-</option>'
-        + '<option value="C"' + (sv.val === 'C' ? ' selected' : '') + '>C</option>'
-        + '<option value="NC"' + (sv.val === 'NC' ? ' selected' : '') + '>NC</option>'
-        + '</select></td>'
-        + '<td><input class="oinp" type="text" value="' + obs + '" placeholder="Observacion..." data-key="' + key + '" onchange="onObs(this)"></td>'
-        + '</tr>';
-    });
-  });
-  h += '</tbody></table></div>'
-    + '<div class="slabel">Firmas de Conformidad - ' + area + '</div>'
-    + '<div class="firma-grid">'
-    + '<div class="firma-box"><label>Ejecutor / Maestro</label><div class="firma-line"></div><input type="text" placeholder="Nombre completo"><input type="date"></div>'
-    + '<div class="firma-box"><label>Supervisor TCC</label><div class="firma-line"></div><input type="text" placeholder="Nombre completo"><input type="date"></div>'
-    + '<div class="firma-box"><label>Arquitecto Responsable</label><div class="firma-line"></div><input type="text" placeholder="Nombre completo"><input type="date"></div>'
-    + '</div>';
+function badgeCls(x){ return x==='CRITICO'?'badge-C':x==='MAYOR'?'badge-M':'badge-N'; }
+function buildPanel(pid,area){
+  var eid=area.replace(/[^a-zA-Z0-9]/g,'_');
+  var h='<div class="nc-banner">'
+    +'<div><div class="nc-title">No Conformidades - '+area+'</div><div class="nc-sub">Se actualiza al marcar NC</div></div>'
+    +'<div><span class="ncs-n n-crit" id="ncc-'+eid+'">0</span><span class="ncs-l">Critico</span></div>'
+    +'<div><span class="ncs-n n-may" id="ncm-'+eid+'">0</span><span class="ncs-l">Mayor</span></div>'
+    +'<div><span class="ncs-n n-men" id="ncn-'+eid+'">0</span><span class="ncs-l">Menor</span></div>'
+    +'</div>'
+    +'<div class="legend">'
+    +'<strong style="font-family:DM Mono,monospace;font-size:8px;letter-spacing:.1em;text-transform:uppercase">Criticidad:</strong>'
+    +'<span><span class="dot dot-cr"></span>Critico</span>'
+    +'<span><span class="dot dot-ma"></span>Mayor</span>'
+    +'<span><span class="dot dot-me"></span>Menor</span>'
+    +'<span style="margin-left:6px;color:#888">C = Conforme | NC = No Conforme</span>'
+    +'</div>'
+    +'<div class="slabel">Checklist - '+area+' - '+TOTAL+' items - 7 Fases</div>'
+    +'<div class="twrap"><table class="ckt"><thead><tr>'
+    +'<th style="width:44px">No</th><th>Criterio</th>'
+    +'<th class="td-s">Estandar</th><th class="td-v">Verificacion</th>'
+    +'<th style="width:72px">Crit.</th>'
+    +'<th style="width:58px;text-align:center">C/NC</th>'
+    +'<th>Observacion</th>'
+    +'</tr></thead><tbody>';
+  for(var fi=0;fi<FASES.length;fi++){
+    var f=FASES[fi];
+    h+='<tr class="phdr"><td colspan="7">&#9670; '+f.label+'</td></tr>';
+    for(var ii=0;ii<f.items.length;ii++){
+      var it=f.items[ii];
+      var key=ckKey(pid,area,f.id,it.n);
+      var sv=getCK(key);
+      var sc=sv.val==='C'?' vC':sv.val==='NC'?' vNC':'';
+      var obs=(sv.obs||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      h+='<tr>'
+        +'<td class="td-n">'+it.n+'</td>'
+        +'<td>'+it.c+'</td>'
+        +'<td class="td-s">'+it.s+'</td>'
+        +'<td class="td-v">'+it.v+'</td>'
+        +'<td><span class="badge '+badgeCls(it.x)+'">'+it.x+'</span></td>'
+        +'<td style="text-align:center">'
+        +'<select class="ssel'+sc+'" data-key="'+key+'" data-crit="'+it.x+'" data-pid="'+pid+'" data-area="'+area+'" onchange="onSel(this)">'
+        +'<option value="">-</option>'
+        +'<option value="C"'+(sv.val==='C'?' selected':'')+'>C</option>'
+        +'<option value="NC"'+(sv.val==='NC'?' selected':'')+'>NC</option>'
+        +'</select></td>'
+        +'<td><input class="oinp" type="text" value="'+obs+'" placeholder="Observacion..." data-key="'+key+'" onchange="onObs(this)"></td>'
+        +'</tr>';
+    }
+  }
+  h+='</tbody></table></div>'
+    +'<div class="slabel">Firmas de Conformidad - '+area+'</div>'
+    +'<div class="firma-grid">'
+    +'<div class="firma-box"><label>Ejecutor / Maestro</label><div class="firma-line"></div><input type="text" placeholder="Nombre completo"><input type="date"></div>'
+    +'<div class="firma-box"><label>Supervisor TCC</label><div class="firma-line"></div><input type="text" placeholder="Nombre completo"><input type="date"></div>'
+    +'<div class="firma-box"><label>Arquitecto Responsable</label><div class="firma-line"></div><input type="text" placeholder="Nombre completo"><input type="date"></div>'
+    +'</div>';
   return h;
 }
 
-// ── CHECKLIST EVENTS ─────────────────────────────────────
-function onSel(sel) {
-  const v = sel.value;
-  sel.className = 'ssel' + (v === 'C' ? ' vC' : v === 'NC' ? ' vNC' : '');
-  if (!DB.checklist[sel.dataset.key]) DB.checklist[sel.dataset.key] = { val: '', obs: '' };
-  DB.checklist[sel.dataset.key].val = v;
-  const obs = DB.checklist[sel.dataset.key].obs || '';
-  patchChecklist(sel.dataset.key, v, obs);
-  const p = getP(sel.dataset.pid);
-  const idx = p.areas.indexOf(sel.dataset.area);
-  const tabs = document.querySelectorAll('.area-tab:not(.add-tab)');
-  if (tabs[idx]) tabs[idx].querySelector('.tab-pct').textContent = getAPct(sel.dataset.pid, sel.dataset.area) + '%';
-  updateAreaNC(sel.dataset.pid, sel.dataset.area);
+// ================================================================
+// CHECKLIST EVENTS
+// ================================================================
+function onSel(sel){
+  var v=sel.value;
+  sel.className='ssel'+(v==='C'?' vC':v==='NC'?' vNC':'');
+  if(!DB.checklist[sel.dataset.key]) DB.checklist[sel.dataset.key]={val:'',obs:''};
+  DB.checklist[sel.dataset.key].val=v;
+  patchCK(sel.dataset.key, v, DB.checklist[sel.dataset.key].obs||'');
+  var p=getP(sel.dataset.pid);
+  var idx=-1; for(var i=0;i<p.areas.length;i++) if(p.areas[i]===sel.dataset.area){ idx=i; break; }
+  var tabs=document.querySelectorAll('.area-tab:not(.add-tab)');
+  if(tabs[idx]) tabs[idx].querySelector('.tab-pct').textContent=getAPct(sel.dataset.pid,sel.dataset.area)+'%';
+  updateAreaNC(sel.dataset.pid,sel.dataset.area);
   updateHero(p);
 }
-function onObs(inp) {
-  if (!DB.checklist[inp.dataset.key]) DB.checklist[inp.dataset.key] = { val: '', obs: '' };
-  DB.checklist[inp.dataset.key].obs = inp.value;
-  const val = DB.checklist[inp.dataset.key].val || '';
-  patchChecklist(inp.dataset.key, val, inp.value);
+function onObs(inp){
+  if(!DB.checklist[inp.dataset.key]) DB.checklist[inp.dataset.key]={val:'',obs:''};
+  DB.checklist[inp.dataset.key].obs=inp.value;
+  patchCK(inp.dataset.key, DB.checklist[inp.dataset.key].val||'', inp.value);
 }
-function updateAreaNC(pid, area) {
-  let ncc = 0, ncm = 0, ncn = 0;
-  FASES.forEach(f => f.items.forEach(it => {
-    const v = getCK(ckKey(pid, area, f.id, it.n)).val;
-    if (v === 'NC') { if (it.x === 'CRITICO') ncc++; else if (it.x === 'MAYOR') ncm++; else ncn++; }
-  }));
-  const eid = area.replace(/[^a-zA-Z0-9]/g, '_');
-  const ec = document.getElementById('ncc-' + eid);
-  const em = document.getElementById('ncm-' + eid);
-  const en = document.getElementById('ncn-' + eid);
-  if (ec) ec.textContent = ncc;
-  if (em) em.textContent = ncm;
-  if (en) en.textContent = ncn;
+function updateAreaNC(pid,area){
+  var ncc=0,ncm=0,ncn=0;
+  for(var fi=0;fi<FASES.length;fi++)
+    for(var ii=0;ii<FASES[fi].items.length;ii++){
+      var v=getCK(ckKey(pid,area,FASES[fi].id,FASES[fi].items[ii].n)).val;
+      if(v==='NC'){ if(FASES[fi].items[ii].x==='CRITICO') ncc++; else if(FASES[fi].items[ii].x==='MAYOR') ncm++; else ncn++; }
+    }
+  var eid=area.replace(/[^a-zA-Z0-9]/g,'_');
+  var ec=document.getElementById('ncc-'+eid);
+  var em=document.getElementById('ncm-'+eid);
+  var en=document.getElementById('ncn-'+eid);
+  if(ec) ec.textContent=ncc;
+  if(em) em.textContent=ncm;
+  if(en) en.textContent=ncn;
 }
-function updateHero(p) {
-  const s = getPStats(p);
-  document.getElementById('dh-t').textContent = TOTAL * p.areas.length;
-  document.getElementById('dh-p').textContent = s.pct + '%';
-  document.getElementById('dh-nc').textContent = s.ncc;
-  document.getElementById('dh-nm').textContent = s.ncm;
+function updateHero(p){
+  var s=getPStats(p);
+  document.getElementById('dh-t').textContent=TOTAL*p.areas.length;
+  document.getElementById('dh-p').textContent=s.pct+'%';
+  document.getElementById('dh-nc').textContent=s.ncc;
+  document.getElementById('dh-nm').textContent=s.ncm;
 }
 
-// ── MODAL PROYECTO ────────────────────────────────────────
-function openProjModal(pid) {
-  modalTags = [];
-  document.getElementById('editProjId').value = pid || '';
-  document.getElementById('fCode').value = '';
-  document.getElementById('fDesc').value = '';
-  document.getElementById('fUbic').value = '';
-  document.getElementById('newAreaInp').value = '';
-  document.getElementById('delProjBtn').style.display = 'none';
-  if (pid) {
-    const p = getP(pid);
-    document.getElementById('projModalTitle').textContent = 'Editar Proyecto';
-    document.getElementById('fCode').value = p.code;
-    document.getElementById('fDesc').value = p.desc || '';
-    document.getElementById('fUbic').value = p.ubic || '';
-    modalTags = p.areas.slice();
-    document.getElementById('delProjBtn').style.display = 'inline-block';
+// ================================================================
+// MODAL PROYECTO
+// ================================================================
+function openProjModal(pid){
+  modalTags=[];
+  document.getElementById('editProjId').value=pid||'';
+  document.getElementById('fCode').value='';
+  document.getElementById('fDesc').value='';
+  document.getElementById('fUbic').value='';
+  document.getElementById('newAreaInp').value='';
+  document.getElementById('delProjBtn').style.display='none';
+  if(pid){
+    var p=getP(pid);
+    document.getElementById('projModalTitle').textContent='Editar Proyecto';
+    document.getElementById('fCode').value=p.code;
+    document.getElementById('fDesc').value=p.desc||'';
+    document.getElementById('fUbic').value=p.ubic||'';
+    modalTags=p.areas.slice();
+    document.getElementById('delProjBtn').style.display='inline-block';
   } else {
-    document.getElementById('projModalTitle').textContent = 'Nuevo Proyecto';
+    document.getElementById('projModalTitle').textContent='Nuevo Proyecto';
   }
   renderModalTags();
   document.getElementById('projModal').classList.add('open');
-  setTimeout(() => document.getElementById('fCode').focus(), 100);
+  setTimeout(function(){ document.getElementById('fCode').focus(); },100);
 }
-function closeProjModal() { document.getElementById('projModal').classList.remove('open'); }
-document.getElementById('projModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeProjModal(); });
-function addModalTag() {
-  const inp = document.getElementById('newAreaInp');
-  const v = inp.value.trim(); if (!v) return;
-  if (!modalTags.includes(v)) modalTags.push(v);
-  inp.value = ''; renderModalTags();
+function closeProjModal(){ document.getElementById('projModal').classList.remove('open'); }
+document.getElementById('projModal').addEventListener('click',function(e){ if(e.target===this) closeProjModal(); });
+function addModalTag(){
+  var inp=document.getElementById('newAreaInp');
+  var v=inp.value.trim(); if(!v) return;
+  var dup=false; for(var i=0;i<modalTags.length;i++) if(modalTags[i]===v) dup=true;
+  if(!dup) modalTags.push(v);
+  inp.value=''; renderModalTags();
 }
-function removeModalTag(i) { modalTags.splice(i, 1); renderModalTags(); }
-function renderModalTags() {
-  document.getElementById('tagsWrap').innerHTML = modalTags.map((t, i) =>
-    '<div class="tag-chip">' + t + '<button onclick="removeModalTag(' + i + ')">x</button></div>'
-  ).join('');
+function removeModalTag(i){ modalTags.splice(i,1); renderModalTags(); }
+function renderModalTags(){
+  document.getElementById('tagsWrap').innerHTML=modalTags.map(function(t,i){
+    return '<div class="tag-chip">'+t+'<button onclick="removeModalTag('+i+')">x</button></div>';
+  }).join('');
 }
-async function saveProject() {
-  const code = document.getElementById('fCode').value.trim().toUpperCase();
-  if (!code) { alert('El codigo del proyecto es obligatorio.'); return; }
-  const eid = document.getElementById('editProjId').value;
-  if (eid) {
-    const p = getP(eid);
-    p.code = code;
-    p.desc = document.getElementById('fDesc').value.trim();
-    p.ubic = document.getElementById('fUbic').value.trim();
-    p.areas = modalTags.slice();
+function saveProject(){
+  var code=document.getElementById('fCode').value.trim().toUpperCase();
+  if(!code){ alert('El codigo es obligatorio.'); return; }
+  var eid=document.getElementById('editProjId').value;
+  if(eid){
+    var p=getP(eid);
+    p.code=code; p.desc=document.getElementById('fDesc').value.trim();
+    p.ubic=document.getElementById('fUbic').value.trim(); p.areas=modalTags.slice();
   } else {
-    DB.projects.push({
-      id: 'proj-' + Date.now(), code,
-      desc: document.getElementById('fDesc').value.trim(),
-      ubic: document.getElementById('fUbic').value.trim(),
-      areas: modalTags.slice()
-    });
+    DB.projects.push({id:'proj-'+Date.now(),code:code,
+      desc:document.getElementById('fDesc').value.trim(),
+      ubic:document.getElementById('fUbic').value.trim(),
+      areas:modalTags.slice()});
   }
-  await pushToDB();
+  db.ref('tcc/projects').set(DB.projects).then(function(){ toast('Proyecto guardado'); }).catch(function(e){ toast('Error: '+e.message,true); });
   closeProjModal();
-  if (eid) showProj(eid); else showOV();
+  if(eid) showProj(eid); else showOV();
 }
-async function deleteProject() {
-  const eid = document.getElementById('editProjId').value;
-  if (!eid) return;
-  if (!confirm('Eliminar este proyecto y todos sus datos?')) return;
-  DB.projects = DB.projects.filter(p => p.id !== eid);
-  Object.keys(DB.checklist).forEach(k => { if (k.startsWith(eid + '__')) delete DB.checklist[k]; });
-  delete DB.images[eid];
-  await pushToDB();
+function deleteProject(){
+  var eid=document.getElementById('editProjId').value; if(!eid) return;
+  if(!confirm('Eliminar este proyecto y todos sus datos?')) return;
+  DB.projects=DB.projects.filter(function(p){ return p.id!==eid; });
+  var patch={};
+  patch['tcc/projects']=DB.projects;
+  patch['tcc/images/'+safeKey(eid)]=null;
+  Object.keys(DB.checklist).forEach(function(k){ if(k.indexOf(safeKey(eid)+'__')===0) patch['tcc/checklist/'+k]=null; });
+  db.ref().update(patch).then(function(){ toast('Proyecto eliminado'); }).catch(function(e){ toast('Error: '+e.message,true); });
   closeProjModal(); showOV();
 }
 
-// ── MINI MODAL ADD AREA ───────────────────────────────────
-function openAAI(pid) {
-  document.getElementById('aaiLabel').textContent = 'Proyecto ' + getP(pid).code;
-  document.getElementById('aaiInp').value = '';
-  document.getElementById('aaiOverlay').dataset.pid = pid;
+// ================================================================
+// ADD AREA
+// ================================================================
+function openAAI(pid){
+  document.getElementById('aaiLabel').textContent='Proyecto '+getP(pid).code;
+  document.getElementById('aaiInp').value='';
+  document.getElementById('aaiOverlay').dataset.pid=pid;
   document.getElementById('aaiOverlay').classList.add('open');
-  setTimeout(() => document.getElementById('aaiInp').focus(), 100);
+  setTimeout(function(){ document.getElementById('aaiInp').focus(); },100);
 }
-function closeAAI() { document.getElementById('aaiOverlay').classList.remove('open'); }
-async function confirmAddArea() {
-  const v = document.getElementById('aaiInp').value.trim(); if (!v) return;
-  const pid = document.getElementById('aaiOverlay').dataset.pid;
-  const p = getP(pid);
-  if (p.areas.includes(v)) { alert('Esa area ya existe en este proyecto.'); return; }
+function closeAAI(){ document.getElementById('aaiOverlay').classList.remove('open'); }
+function confirmAddArea(){
+  var v=document.getElementById('aaiInp').value.trim(); if(!v) return;
+  var pid=document.getElementById('aaiOverlay').dataset.pid;
+  var p=getP(pid);
+  var dup=false; for(var i=0;i<p.areas.length;i++) if(p.areas[i]===v) dup=true;
+  if(dup){ alert('Esa area ya existe.'); return; }
   p.areas.push(v);
-  await pushToDB();
+  db.ref('tcc/projects').set(DB.projects).then(function(){ toast('Area agregada'); }).catch(function(e){ toast('Error: '+e.message,true); });
   closeAAI(); showProj(pid);
-  const tabs = document.querySelectorAll('.area-tab:not(.add-tab)');
-  if (tabs.length) switchArea(tabs.length - 1, p);
+  var tabs=document.querySelectorAll('.area-tab:not(.add-tab)');
+  if(tabs.length) switchArea(tabs.length-1,p);
 }
-document.getElementById('aaiOverlay').addEventListener('click', e => { if (e.target === e.currentTarget) closeAAI(); });
+document.getElementById('aaiOverlay').addEventListener('click',function(e){ if(e.target===this) closeAAI(); });
 
-// ── INIT ─────────────────────────────────────────────────
-window.toggleSB = toggleSB;
-window.openProjModal = openProjModal;
-window.closeProjModal = closeProjModal;
-window.addModalTag = addModalTag;
-window.removeModalTag = removeModalTag;
-window.saveProject = saveProject;
-window.deleteProject = deleteProject;
-window.openAAI = openAAI;
-window.closeAAI = closeAAI;
-window.confirmAddArea = confirmAddArea;
-window.onSel = onSel;
-window.onObs = onObs;
-window.closeLB = closeLB;
-window.lbNav = lbNav;
-
+// ================================================================
+// INIT
+// ================================================================
 startListening();
 </script>
 </body>
