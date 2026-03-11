@@ -457,6 +457,34 @@ function toast(msg,isErr){
 // ================================================================
 // FIREBASE — real-time listener
 // ================================================================
+// softRefresh: updates C/NC selectors, observations, % tabs and NC counters
+// WITHOUT rebuilding the DOM — preserves open tabs and scroll position
+function softRefresh(p){
+  // Update all visible selectors
+  var sels = document.querySelectorAll('.ssel');
+  for(var i=0;i<sels.length;i++){
+    var sel=sels[i];
+    var v=getCK(sel.dataset.key).val||'';
+    sel.value=v;
+    sel.className='ssel'+(v==='C'?' vC':v==='NC'?' vNC':'');
+  }
+  // Update all observation inputs
+  var inps = document.querySelectorAll('.oinp');
+  for(var i=0;i<inps.length;i++){
+    var inp=inps[i];
+    var obs=getCK(inp.dataset.key).obs||'';
+    if(document.activeElement!==inp) inp.value=obs;
+  }
+  // Update tab % for all areas
+  var tabs=document.querySelectorAll('.area-tab:not(.add-tab)');
+  for(var i=0;i<tabs.length;i++){
+    if(p.areas[i]){
+      tabs[i].querySelector('.tab-pct').textContent=getAPct(p.id,p.areas[i])+'%';
+      updateAreaNC(p.id,p.areas[i]);
+    }
+  }
+}
+
 function startListening(){
   setSyncStatus('yellow','Conectando...');
   db.ref('tcc').on('value', function(snap){
@@ -478,7 +506,7 @@ function startListening(){
     renderOVCards();
     if(curProjId){
       var p=getP(curProjId);
-      if(p){ renderTabs(p); updateHero(p); renderGallery(curProjId); }
+      if(p){ softRefresh(p); updateHero(p); }
     }
   }, function(err){
     setSyncStatus('red','Sin conexion');
@@ -765,10 +793,12 @@ function onSel(sel){
   if(!DB.checklist[sel.dataset.key]) DB.checklist[sel.dataset.key]={val:'',obs:''};
   DB.checklist[sel.dataset.key].val=v;
   patchCK(sel.dataset.key, v, DB.checklist[sel.dataset.key].obs||'');
+  // Update % on tab immediately (local)
   var p=getP(sel.dataset.pid);
-  var idx=-1; for(var i=0;i<p.areas.length;i++) if(p.areas[i]===sel.dataset.area){ idx=i; break; }
+  var idx=-1;
+  for(var i=0;i<p.areas.length;i++) if(p.areas[i]===sel.dataset.area){ idx=i; break; }
   var tabs=document.querySelectorAll('.area-tab:not(.add-tab)');
-  if(tabs[idx]) tabs[idx].querySelector('.tab-pct').textContent=getAPct(sel.dataset.pid,sel.dataset.area)+'%';
+  if(idx>=0 && tabs[idx]) tabs[idx].querySelector('.tab-pct').textContent=getAPct(sel.dataset.pid,sel.dataset.area)+'%';
   updateAreaNC(sel.dataset.pid,sel.dataset.area);
   updateHero(p);
 }
