@@ -863,7 +863,10 @@ const F = (function(){
     return tr;
   }
   function _recalcBsFila(tr){ const bs=parse(tr.querySelector('.inp-bs').value),tasa=parse(tr.querySelector('.inp-tasa-bs').value)||getTasaBs(),eu=tr.querySelector('.inp-eusd'); eu.value=bs>0&&tasa>0?(bs/tasa).toFixed(2):''; }
-  function _recalcBs(){ const tasa=getTasaBs(); let totBs=0,totEquiv=0; document.querySelectorAll('#f-tbody-bs tr').forEach(tr=>{ _recalcBsFila(tr); totBs+=parse(tr.querySelector('.inp-bs').value); totEquiv+=parse(tr.querySelector('.inp-eusd').value); }); document.getElementById('f-tot-bs').textContent=fmtBs(totBs); document.getElementById('f-tot-bs-usd').textContent=fmt(totEquiv); document.getElementById('f-kpi-bs').textContent=fmtBs(totBs); }
+  function _recalcBs(){ const tasa=getTasaBs(); let totBs=0,totEquiv=0; document.querySelectorAll('#f-tbody-bs tr').forEach(tr=>{ _recalcBsFila(tr); totBs+=parse(tr.querySelector('.inp-bs').value); totEquiv+=parse(tr.querySelector('.inp-eusd').value); }); document.getElementById('f-tot-bs').textContent=fmtBs(totBs); document.getElementById('f-tot-bs-usd').textContent=fmt(totEquiv); document.getElementById('f-kpi-bs').textContent=fmtBs(totBs);
+    // Notificar al Estado de Cuenta cuando cambian los pagos Bs
+    if(typeof EC !== 'undefined') EC.actualizarFlujoData();
+  }
   function agregarPagoBs(d){ document.getElementById('f-tbody-bs').appendChild(crearFilaBs(d)); if(!d) document.querySelector('#f-tbody-bs tr:last-child .inp-bs').focus(); _recalcBs(); }
 
   function leerFormulario(){
@@ -959,9 +962,15 @@ const EC = (function(){
 
   function crearFilaPago(item={}){
     const tr=document.createElement('tr');
-    const modal=(item.modalidad||'Efectivo $').replace(/"/g,'&quot;');
+    const modal=(item.modalidad||'Efectivo USD').replace(/"/g,'&quot;');
     const aplicaA=(item.aplicaA||'— General (sin asignar) —').replace(/"/g,'&quot;');
-    tr.innerHTML=`<td><input type="date" class="inp-fecha-pago" value="${item.fecha||''}" style="font-family:'DM Mono',monospace;font-size:12px;border:none;background:transparent;outline:none;color:var(--ink);width:100%;"></td><td><span class="badge-modal"><input type="text" class="inp-modal-ec" value="${modal}"></span></td><td class="td-amount"><input class="inp-monto-ec" type="text" data-raw="${item.monto||0}" style="text-align:right;"></td><td><select class="inp-aplica sel-aplica">${getDescOpciones(aplicaA)}</select></td><td class="td-delete"><button onclick="this.closest('tr').remove();recalcular()">×</button></td>`;
+    // Todas las modalidades de pago posibles
+    const MODS_EC=['Efectivo USD','Efectivo Bs','Zelle','Transferencia Bs','Transferencia','Pago móvil','Depósito','Euro Efectivo','Camioneta / Especie','Materiales','Mercados','Otro'];
+    const optsModal = MODS_EC.map(m=>`<option value="${m}"${m===modal?' selected':''}>${m}</option>`).join('');
+    // Si la modalidad no está en la lista, agregarla como opción seleccionada
+    const existe = MODS_EC.includes(modal);
+    const extraOpt = !existe ? `<option value="${modal}" selected>${modal}</option>` : '';
+    tr.innerHTML=`<td><input type="date" class="inp-fecha-pago" value="${item.fecha||''}" style="font-family:'DM Mono',monospace;font-size:12px;border:none;background:transparent;outline:none;color:var(--ink);width:100%;"></td><td><select class="inp-modal-ec sel-aplica" style="font-family:'DM Mono',monospace;font-size:10px;color:var(--ink);background:var(--paper);border:1px solid var(--gold);border-radius:2px;padding:3px 6px;width:100%;outline:none;cursor:pointer;">${extraOpt}${optsModal}</select></td><td class="td-amount"><input class="inp-monto-ec" type="text" data-raw="${item.monto||0}" style="text-align:right;"></td><td><select class="inp-aplica sel-aplica">${getDescOpciones(aplicaA)}</select></td><td class="td-delete"><button onclick="this.closest('tr').remove();recalcular()">×</button></td>`;
     tr.querySelector('.inp-fecha-pago').addEventListener('input',recalcular);
     tr.querySelector('.inp-modal-ec').addEventListener('input',recalcular);
     tr.querySelector('.inp-aplica').addEventListener('change',recalcular);
@@ -1009,36 +1018,95 @@ const EC = (function(){
     actualizarFlujoData();
   }
 
+  // Detecta la modalidad de pago desde el texto del concepto
+  function detectarModalidad(concepto){
+    if(!concepto) return 'Efectivo USD';
+    const t = concepto.toLowerCase();
+    if(t.includes('zelle'))                           return 'Zelle';
+    if(t.includes('transferencia') && t.includes('bs')) return 'Transferencia Bs';
+    if(t.includes('transferencia'))                   return 'Transferencia';
+    if(t.includes('pago movil') || t.includes('pago móvil')) return 'Pago móvil';
+    if(t.includes('efectivo bs') || t.includes('bs')) return 'Efectivo Bs';
+    if(t.includes('efectivo'))                        return 'Efectivo USD';
+    if(t.includes('deposito') || t.includes('depósito')) return 'Depósito';
+    if(t.includes('euro'))                            return 'Euro Efectivo';
+    return 'Efectivo USD';
+  }
+
   function actualizarFlujoData(){
-    const cli=document.getElementById('ec-cliente').value.trim();
+    const cli = document.getElementById('ec-cliente').value.trim();
     if(!cli) return;
-    const clienteMovs=window._flujoClienteMovs||{};
-    const entry=Object.entries(clienteMovs).find(([k])=>k.toLowerCase()===cli.toLowerCase()||k.toLowerCase().includes(cli.toLowerCase()));
-    if(!entry||!entry[1].length) return;
-    // Agregar automáticamente pagos del flujo que no estén ya en la tabla
-    const movs=entry[1];
-    const tbody=document.getElementById('ec-tbody-pag');
-    movs.forEach(m=>{
-      // Verificar si ya existe esta fila (por fecha + monto)
-      const yaExiste=[...tbody.querySelectorAll('tr')].some(tr=>{
-        const f=tr.querySelector('.inp-fecha-pago')?.value||'';
-        const mo=parseFloat(tr.querySelector('.inp-monto-ec')?.dataset.raw||0);
-        return f===m.fecha && Math.abs(mo-m.monto)<0.01;
-      });
-      if(!yaExiste){
-        const fila=crearFilaPago({
-          fecha:m.fecha,
-          modalidad:'Flujo de Efectivo — '+( m.concepto||'Cobro'),
-          monto:m.monto,
-          aplicaA:'— General (sin asignar) —'
-        });
-        // Marcar como proveniente del flujo
-        fila.style.background='rgba(74,124,89,.06)';
-        fila.title='Registrado automáticamente desde Flujo de Efectivo';
-        tbody.appendChild(fila);
-        recalcular();
+
+    const tbody = document.getElementById('ec-tbody-pag');
+
+    // ── FUENTE 1: Movimientos USD del Flujo donde origen = cliente ──
+    const clienteMovs = window._flujoClienteMovs || {};
+    const entry = Object.entries(clienteMovs).find(([k])=>
+      k.toLowerCase()===cli.toLowerCase() || k.toLowerCase().includes(cli.toLowerCase())
+    );
+    const movsUSD = entry ? entry[1] : [];
+
+    // ── FUENTE 2: Pagos en Bolívares del Flujo donde cliente = este cliente ──
+    const movsBs = [];
+    document.querySelectorAll('#f-tbody-bs tr').forEach(tr=>{
+      const clienteBs = tr.querySelector('.inp-cli-bs')?.value.trim() || '';
+      // Coincidencia flexible con el nombre del cliente
+      if(!clienteBs) return;
+      if(clienteBs.toLowerCase()===cli.toLowerCase() ||
+         clienteBs.toLowerCase().includes(cli.toLowerCase()) ||
+         cli.toLowerCase().includes(clienteBs.toLowerCase())){
+        const fecha    = tr.querySelector('.inp-fecha-bs')?.value || '';
+        const concepto = tr.querySelector('.inp-conc-bs')?.value || 'Pago en Bs';
+        const montoBs  = parseFloat(tr.querySelector('.inp-bs')?.value) || 0;
+        const equivUSD = parseFloat(tr.querySelector('.inp-eusd')?.value) || 0;
+        const modal    = tr.querySelector('.inp-modal')?.value || 'Pago Bs';
+        if(montoBs > 0) movsBs.push({fecha, concepto, montoBs, equivUSD, modal});
       }
     });
+
+    // ── Función para verificar si ya existe una fila ──
+    function yaExiste(fecha, monto){
+      return [...tbody.querySelectorAll('tr')].some(tr=>{
+        const f  = tr.querySelector('.inp-fecha-pago')?.value || '';
+        const mo = parseFloat(tr.querySelector('.inp-monto-ec')?.dataset.raw || 0);
+        return f===fecha && Math.abs(mo-monto)<0.01;
+      });
+    }
+
+    // ── Agregar movimientos USD ──
+    movsUSD.forEach(m=>{
+      if(!m.monto || yaExiste(m.fecha, m.monto)) return;
+      // Detectar modalidad desde el concepto o usar Efectivo USD por defecto
+      const modalUSD = detectarModalidad(m.concepto);
+      const fila = crearFilaPago({
+        fecha:    m.fecha,
+        modalidad: modalUSD,
+        monto:    m.monto,
+        aplicaA:  '— General (sin asignar) —'
+      });
+      fila.style.background = 'rgba(74,124,89,.06)';
+      fila.title = 'Desde Flujo de Efectivo: '+(m.concepto||'');
+      tbody.appendChild(fila);
+    });
+
+    // ── Agregar pagos en Bolívares (equivalente USD) ──
+    movsBs.forEach(m=>{
+      const montoRef = m.equivUSD > 0 ? m.equivUSD : m.montoBs;
+      if(!montoRef || yaExiste(m.fecha, montoRef)) return;
+      // Usar la modalidad exacta registrada en el Flujo de Bs
+      const modalBs = m.modal || 'Transferencia Bs';
+      const fila = crearFilaPago({
+        fecha:    m.fecha,
+        modalidad: modalBs,
+        monto:    montoRef,
+        aplicaA:  '— General (sin asignar) —'
+      });
+      fila.style.background = 'rgba(184,146,74,.06)';
+      fila.title = 'Desde Pagos en Bs — equiv. USD: '+fmt(montoRef);
+      tbody.appendChild(fila);
+    });
+
+    if(movsUSD.length || movsBs.length) recalcular();
   }
 
   function leerFormulario(){
