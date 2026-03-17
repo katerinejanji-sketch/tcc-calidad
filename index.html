@@ -317,7 +317,7 @@ tbody td{padding:8px 8px 8px 0;font-size:14px;vertical-align:middle;}
   </div>
   <div class="nav-tabs">
     <button class="nav-tab active" id="tab-flujo" onclick="cambiarPestana('flujo')">
-      <span class="tab-icon">⟳</span> Flujo de Efectivo
+      <span class="tab-icon">⟳</span> Flujo de Caja
     </button>
     <button class="nav-tab" id="tab-ec" onclick="cambiarPestana('ec')">
       <span class="tab-icon">◈</span> Estado de Cuenta
@@ -339,7 +339,7 @@ tbody td{padding:8px 8px 8px 0;font-size:14px;vertical-align:middle;}
 <div class="app-layout">
 <aside class="sidebar">
   <div class="sidebar-header">
-    <div class="sidebar-title">Flujo de Efectivo</div>
+    <div class="sidebar-title">Flujo de Caja</div>
     <button class="btn-nuevo" onclick="F.nuevoRegistro()">+ Nuevo Período</button>
   </div>
   <div class="sidebar-kpis">
@@ -386,7 +386,7 @@ tbody td{padding:8px 8px 8px 0;font-size:14px;vertical-align:middle;}
       </div>
       <div class="doc-meta">
         <div class="doc-label">Documento</div>
-        <div class="doc-title">Flujo de Efectivo</div>
+        <div class="doc-title">Flujo de Caja</div>
         <div class="doc-sub">Movimientos · Cajas · Clientes · Bs</div>
         <div class="doc-date" id="f-fecha-display"></div>
       </div>
@@ -400,26 +400,44 @@ tbody td{padding:8px 8px 8px 0;font-size:14px;vertical-align:middle;}
     <div class="body">
       <!-- MOVIMIENTOS -->
       <div class="section-header">
-        <h2>Movimientos de Efectivo</h2><div class="section-line"></div>
+        <h2>Registro de Movimientos</h2><div class="section-line"></div>
         <button class="section-add-btn" onclick="F.agregarMov()">+ Fila</button>
       </div>
       <div class="table-wrap">
+        <!-- Filtro de tabla -->
+        <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;flex-wrap:wrap;">
+          <div style="font-family:'DM Mono',monospace;font-size:8px;letter-spacing:.15em;text-transform:uppercase;color:var(--warm-gray);">Filtrar tabla:</div>
+          <select id="f-filtro-caja" onchange="F.filtrarTabla()" style="font-family:'DM Mono',monospace;font-size:10px;border:1px solid var(--gold);background:var(--paper);padding:4px 8px;outline:none;cursor:pointer;color:var(--ink);">
+            <option value="">Todas las cajas</option>
+          </select>
+          <input type="date" id="f-filtro-desde-tab" onchange="F.filtrarTabla()" style="font-family:'DM Mono',monospace;font-size:10px;border:1px solid var(--line);padding:4px 6px;outline:none;color:var(--ink);">
+          <span style="font-family:'DM Mono',monospace;font-size:9px;color:var(--warm-gray);">→</span>
+          <input type="date" id="f-filtro-hasta-tab" onchange="F.filtrarTabla()" style="font-family:'DM Mono',monospace;font-size:10px;border:1px solid var(--line);padding:4px 6px;outline:none;color:var(--ink);">
+          <button onclick="F.limpiarFiltroTabla()" style="font-family:'DM Mono',monospace;font-size:9px;background:transparent;border:1px solid var(--line);color:var(--warm-gray);padding:4px 10px;cursor:pointer;">✕ Limpiar</button>
+          <button onclick="F.exportarCaja()" style="font-family:'DM Mono',monospace;font-size:9px;background:var(--gold);color:white;border:none;padding:4px 12px;cursor:pointer;margin-left:auto;">↓ Exportar</button>
+        </div>
         <table><thead><tr>
-          <th style="width:10%">Fecha</th><th style="width:11%">Tipo</th>
-          <th style="width:16%">Origen / Fondo</th><th style="width:16%">Cuenta Destino</th>
-          <th style="width:30%">Concepto</th><th style="width:13%" class="r">Monto USD</th>
+          <th style="width:9%">Fecha</th>
+          <th style="width:10%">Tipo</th>
+          <th style="width:13%">Modalidad</th>
+          <th style="width:13%">Origen / Fondo</th>
+          <th style="width:13%">Cuenta Destino</th>
+          <th style="width:22%">Concepto</th>
+          <th style="width:8%" class="r">Tasa Bs</th>
+          <th style="width:8%" class="r">Monto</th>
           <th style="width:4%"></th>
         </tr></thead>
         <tbody id="f-tbody-mov"></tbody>
         <tfoot><tr class="tfoot-row">
-          <td colspan="4"></td>
+          <td colspan="5"></td>
           <td><div class="tot-label">Ingresos</div><div class="tot-label">Egresos</div><div class="tot-label">Neto</div></td>
+          <td></td>
           <td class="r"><div class="tot-val pos" id="f-tot-ingr">$0.00</div><div class="tot-val neg" id="f-tot-egr">$0.00</div><div class="tot-val gold" id="f-tot-neto-ft">$0.00</div></td>
           <td></td>
         </tr></tfoot></table>
       </div>
       <div class="neto-bar">
-        <span class="nb-label">Flujo Neto del Período</span>
+        <span class="nb-label">Saldo Neto del Período</span>
         <span class="nb-val" id="f-neto-bar"><span class="dol">$</span><span id="f-neto-num">0.00</span></span>
       </div>
 
@@ -757,26 +775,104 @@ const F = (function(){
     else el.textContent='';
   }
 
+  // Modalidades que NO usan tasa (solo monto USD)
+  const MODS_USD = ['Efectivo USD','Zelle','Euro Efectivo','Carros / Especie','Materiales','Efectivo $','Efectivo Euro'];
+  // Modalidades que SÍ usan tasa Bs/USD
+  const MODS_BS  = ['Transferencia Bs','Pago móvil','Mercados','Efectivo Bs','Depósito Bs'];
+  const MODS_ALL = [...MODS_USD, ...MODS_BS, 'Transferencia','Depósito','Otro'];
+
+  function usaTasa(modal){ return MODS_BS.some(m=>m.toLowerCase()===modal.toLowerCase()); }
+
   function crearFilaMov(d={}){
-    const tipo=d.tipo||'Ingreso';
-    const tr=document.createElement('tr'); tr.className=`tipo-${tipo.toLowerCase()}`;
+    const tipo  = d.tipo     || 'Ingreso';
+    const modal = d.modalidad|| 'Efectivo USD';
+    const tr = document.createElement('tr');
+    tr.className = `tipo-${tipo.toLowerCase()}`;
+    tr.dataset.visible = 'true';
+
+    // ── Fecha ──
     const tdF=document.createElement('td'); tdF.className='td-input';
-    const inpF=document.createElement('input'); inpF.type='date'; inpF.className='inp-fecha'; inpF.value=d.fecha||''; inpF.oninput=recalcular; tdF.appendChild(inpF);
+    const inpF=document.createElement('input'); inpF.type='date'; inpF.className='inp-fecha';
+    inpF.value=d.fecha||''; inpF.oninput=()=>{recalcular();F.filtrarTabla();};
+    tdF.appendChild(inpF);
+
+    // ── Tipo ──
     const tdT=document.createElement('td'); tdT.className='td-input';
-    const selT=document.createElement('select'); selT.className='inp-tipo'; selT.innerHTML=selOpts(TIPOS,tipo);
-    selT.onchange=()=>{ tr.className='tipo-'+selT.value.toLowerCase(); recalcular(); }; tdT.appendChild(selT);
+    const selT=document.createElement('select'); selT.className='inp-tipo';
+    selT.innerHTML=selOpts(TIPOS,tipo);
+    selT.onchange=()=>{ tr.className='tipo-'+selT.value.toLowerCase(); recalcular(); };
+    tdT.appendChild(selT);
+
+    // ── Modalidad ──
+    const tdM=document.createElement('td'); tdM.className='td-input';
+    const selM=document.createElement('select'); selM.className='inp-modal-flujo';
+    selM.style.cssText='font-family:'Cormorant Garamond',serif;font-size:13px;color:var(--ink);background:transparent;border:none;width:100%;outline:none;cursor:pointer;';
+    selM.innerHTML=MODS_ALL.map(m=>`<option value="${m}"${m===modal?' selected':''}>${m}</option>`).join('');
+    selM.onchange=()=>{ actualizarCamposTasa(tr, selM.value); recalcular(); };
+    tdM.appendChild(selM);
+
+    // ── Origen ──
     const tdO=document.createElement('td'); tdO.className='td-input';
-    const cO=crearCombo(d.origen||'','origen',recalcular); cO.classList.add('inp-orig-wrap'); tdO.appendChild(cO);
+    const cO=crearCombo(d.origen||'','origen',()=>{recalcular();F.filtrarTabla();}); cO.classList.add('inp-orig-wrap'); tdO.appendChild(cO);
+
+    // ── Destino ──
     const tdD=document.createElement('td'); tdD.className='td-input';
     const cD=crearCombo(d.destino||'','destino',recalcular); cD.classList.add('inp-dest-wrap'); tdD.appendChild(cD);
+
+    // ── Concepto ──
     const tdC=document.createElement('td'); tdC.className='td-input';
-    const inpC=document.createElement('input'); inpC.type='text'; inpC.className='inp-concepto'; inpC.value=d.concepto||''; inpC.placeholder='Concepto…'; tdC.appendChild(inpC);
+    const inpC=document.createElement('input'); inpC.type='text'; inpC.className='inp-concepto';
+    inpC.value=d.concepto||''; inpC.placeholder='Concepto…'; tdC.appendChild(inpC);
+
+    // ── Tasa Bs (condicional) ──
+    const tdTasa=document.createElement('td'); tdTasa.className='td-mono';
+    const inpTasa=document.createElement('input'); inpTasa.type='number'; inpTasa.className='inp-tasa-flujo';
+    inpTasa.value=d.tasa||''; inpTasa.placeholder='—'; inpTasa.min='0'; inpTasa.step='0.01';
+    inpTasa.style.cssText='font-family:'DM Mono',monospace;font-size:11px;color:var(--warm-gray);background:transparent;border:none;width:100%;text-align:right;outline:none;';
+    inpTasa.oninput=recalcular; tdTasa.appendChild(inpTasa);
+
+    // ── Monto ──
     const tdU=document.createElement('td'); tdU.className='td-mono';
-    const inpU=document.createElement('input'); inpU.type='number'; inpU.className='inp-usd'; inpU.value=d.monto_usd||''; inpU.placeholder='0.00'; inpU.min='0'; inpU.step='0.01'; inpU.oninput=recalcular; tdU.appendChild(inpU);
+    const inpU=document.createElement('input'); inpU.type='number'; inpU.className='inp-usd';
+    inpU.value=d.monto_usd||''; inpU.min='0'; inpU.step='0.01'; inpU.oninput=recalcular;
+    tdU.appendChild(inpU);
+
+    // ── Eliminar ──
     const tdX=document.createElement('td'); tdX.className='td-del';
-    const btnX=document.createElement('button'); btnX.textContent='×'; btnX.onclick=()=>{ tr.remove(); recalcular(); }; tdX.appendChild(btnX);
-    [tdF,tdT,tdO,tdD,tdC,tdU,tdX].forEach(td=>tr.appendChild(td));
+    const btnX=document.createElement('button'); btnX.textContent='×';
+    btnX.onclick=()=>{ tr.remove(); recalcular(); F.actualizarSelectCajas(); };
+    tdX.appendChild(btnX);
+
+    [tdF,tdT,tdM,tdO,tdD,tdC,tdTasa,tdU,tdX].forEach(td=>tr.appendChild(td));
+
+    // Aplicar estado visual inicial de tasa
+    actualizarCamposTasa(tr, modal);
     return tr;
+  }
+
+  function actualizarCamposTasa(tr, modal){
+    const tasaCel = tr.querySelector('.inp-tasa-flujo');
+    const montoCel = tr.querySelector('.inp-usd');
+    if(!tasaCel) return;
+    if(usaTasa(modal)){
+      // Activar tasa
+      tasaCel.disabled = false;
+      tasaCel.style.opacity='1';
+      tasaCel.placeholder='Bs/USD';
+      tasaCel.style.color='var(--ink)';
+      montoCel.placeholder='0.00 equiv.$';
+      montoCel.style.color='var(--warm-gray)';
+      montoCel.title='Se calcula automáticamente con la tasa';
+    } else {
+      // Solo monto USD — ocultar tasa
+      tasaCel.disabled = true;
+      tasaCel.value = '';
+      tasaCel.style.opacity='0.25';
+      tasaCel.placeholder='—';
+      montoCel.placeholder='0.00';
+      montoCel.style.color='var(--ink)';
+      montoCel.title='';
+    }
   }
 
   function agregarMov(d){ document.getElementById('f-tbody-mov').appendChild(crearFilaMov(d)); if(!d) document.querySelector('#f-tbody-mov tr:last-child .inp-fecha').focus(); recalcular(); }
@@ -832,6 +928,8 @@ const F = (function(){
     window._flujoClienteMovs = clienteMovs;
     // Siempre actualizar EC — esté visible o no
     if(typeof EC !== 'undefined') EC.actualizarFlujoData();
+    // Actualizar select de cajas en filtro
+    actualizarSelectCajas();
   }
 
   function renderECInline(clienteMovs){
@@ -870,7 +968,19 @@ const F = (function(){
   function agregarPagoBs(d){ document.getElementById('f-tbody-bs').appendChild(crearFilaBs(d)); if(!d) document.querySelector('#f-tbody-bs tr:last-child .inp-bs').focus(); _recalcBs(); }
 
   function leerFormulario(){
-    const movs=[]; document.querySelectorAll('#f-tbody-mov tr').forEach(tr=>{ const oW=tr.querySelector('.inp-orig-wrap'),dW=tr.querySelector('.inp-dest-wrap'); movs.push({fecha:tr.querySelector('.inp-fecha').value,tipo:tr.querySelector('.inp-tipo').value,origen:oW?oW.getValue():'',destino:dW?dW.getValue():'',concepto:tr.querySelector('.inp-concepto').value,monto_usd:parse(tr.querySelector('.inp-usd').value)}); });
+    const movs=[]; document.querySelectorAll('#f-tbody-mov tr').forEach(tr=>{
+      const oW=tr.querySelector('.inp-orig-wrap'),dW=tr.querySelector('.inp-dest-wrap');
+      movs.push({
+        fecha:     tr.querySelector('.inp-fecha').value,
+        tipo:      tr.querySelector('.inp-tipo').value,
+        modalidad: tr.querySelector('.inp-modal-flujo')?.value||'Efectivo USD',
+        origen:    oW?oW.getValue():'',
+        destino:   dW?dW.getValue():'',
+        concepto:  tr.querySelector('.inp-concepto').value,
+        tasa:      parseFloat(tr.querySelector('.inp-tasa-flujo')?.value)||0,
+        monto_usd: parse(tr.querySelector('.inp-usd').value)
+      });
+    });
     const pagosBs=[]; document.querySelectorAll('#f-tbody-bs tr').forEach(tr=>{ pagosBs.push({fecha:tr.querySelector('.inp-fecha-bs').value,cliente:tr.querySelector('.inp-cli-bs').value,concepto:tr.querySelector('.inp-conc-bs').value,monto_bs:parse(tr.querySelector('.inp-bs').value),tasa:parse(tr.querySelector('.inp-tasa-bs').value),equiv_usd:parse(tr.querySelector('.inp-eusd').value),modalidad:tr.querySelector('.inp-modal').value}); });
     return{periodo:document.getElementById('f-periodo').value||'Sin período',fecha_ini:document.getElementById('f-fecha-ini').value,fecha_fin:document.getElementById('f-fecha-fin').value,responsable:document.getElementById('f-resp').value,tasa_bs:getTasaBs(),nota:document.getElementById('f-nota').value,movs,pagosBs,guardadoEn:new Date().toISOString()};
   }
@@ -917,7 +1027,127 @@ const F = (function(){
     agregarMov(); agregarMov(); agregarMov(); agregarPagoBs(); recalcular(); _recalcBs(); renderHistorial();
     document.getElementById('f-periodo').focus();
   }
-  return{nuevoRegistro,guardarRegistro,agregarMov,agregarPagoBs,recalcular,_recalcBs,_recalcBsFila,limpiarFiltro,renderHistorial,_delReg,_limpiar,actualizarFecha,_selEC,leerFormulario,cargarFormulario};
+  // ── Actualizar select de cajas en filtro ──────────────────────
+  function actualizarSelectCajas(){
+    const sel = document.getElementById('f-filtro-caja');
+    if(!sel) return;
+    const actual = sel.value;
+    const cajas = new Set();
+    document.querySelectorAll('#f-tbody-mov tr').forEach(tr=>{
+      const oW=tr.querySelector('.inp-orig-wrap'),dW=tr.querySelector('.inp-dest-wrap');
+      if(oW&&oW.getValue()) cajas.add(oW.getValue());
+      if(dW&&dW.getValue()) cajas.add(dW.getValue());
+    });
+    sel.innerHTML = '<option value="">Todas las cajas</option>' +
+      [...cajas].sort().map(c=>`<option value="${c}"${c===actual?' selected':''}>${c}</option>`).join('');
+  }
+
+  // ── Filtrar tabla por caja y rango de fechas ────────────────────
+  function filtrarTabla(){
+    const cajaSel  = document.getElementById('f-filtro-caja')?.value||'';
+    const desde    = document.getElementById('f-filtro-desde-tab')?.value||'';
+    const hasta    = document.getElementById('f-filtro-hasta-tab')?.value||'';
+    let visibles=0, totIngr=0, totEgr=0;
+
+    document.querySelectorAll('#f-tbody-mov tr').forEach(tr=>{
+      const oW=tr.querySelector('.inp-orig-wrap'),dW=tr.querySelector('.inp-dest-wrap');
+      const origen  = oW?oW.getValue():'';
+      const destino = dW?dW.getValue():'';
+      const fecha   = tr.querySelector('.inp-fecha').value||'';
+      const tipo    = tr.querySelector('.inp-tipo').value;
+      const monto   = parse(tr.querySelector('.inp-usd').value);
+
+      let mostrar = true;
+      // Filtro caja
+      if(cajaSel && origen!==cajaSel && destino!==cajaSel) mostrar=false;
+      // Filtro desde
+      if(desde && fecha && fecha<desde) mostrar=false;
+      // Filtro hasta
+      if(hasta && fecha && fecha>hasta) mostrar=false;
+
+      tr.style.display = mostrar ? '' : 'none';
+      tr.dataset.visible = mostrar ? 'true' : 'false';
+      if(mostrar){
+        visibles++;
+        if(tipo==='Ingreso') totIngr+=monto;
+        if(tipo==='Egreso')  totEgr+=monto;
+      }
+    });
+
+    // Actualizar totales del tfoot con los valores filtrados
+    const neto = totIngr - totEgr;
+    document.getElementById('f-tot-ingr').textContent   = fmt(totIngr);
+    document.getElementById('f-tot-egr').textContent    = fmt(totEgr);
+    const nftEl = document.getElementById('f-tot-neto-ft');
+    nftEl.textContent = fmt(neto);
+    nftEl.className   = 'tot-val '+(neto>=0?'gold':'neg');
+
+    // Indicador de filtro activo
+    const hayFiltro = cajaSel||desde||hasta;
+    const label = document.querySelector('#f-filtro-caja')?.closest('div')?.querySelector('.filtro-activo-label');
+    if(hayFiltro){
+      document.getElementById('f-neto-bar').closest('.neto-bar').style.borderColor='var(--gold-light)';
+    }
+    actualizarSelectCajas();
+  }
+
+  function limpiarFiltroTabla(){
+    const sel=document.getElementById('f-filtro-caja');
+    const d=document.getElementById('f-filtro-desde-tab');
+    const h=document.getElementById('f-filtro-hasta-tab');
+    if(sel)sel.value=''; if(d)d.value=''; if(h)h.value='';
+    document.querySelectorAll('#f-tbody-mov tr').forEach(tr=>{ tr.style.display=''; tr.dataset.visible='true'; });
+    recalcular();
+  }
+
+  // ── Exportar caja filtrada a CSV ────────────────────────────────
+  function exportarCaja(){
+    const cajaSel = document.getElementById('f-filtro-caja')?.value||'';
+    const desde   = document.getElementById('f-filtro-desde-tab')?.value||'';
+    const hasta   = document.getElementById('f-filtro-hasta-tab')?.value||'';
+    const periodo = document.getElementById('f-periodo')?.value||'';
+
+    const filas = [];
+    const header = ['Fecha','Tipo','Modalidad','Origen','Destino','Concepto','Tasa Bs','Monto USD'];
+    filas.push(header);
+
+    let saldo=0, totI=0, totE=0;
+    document.querySelectorAll('#f-tbody-mov tr').forEach(tr=>{
+      if(tr.style.display==='none') return; // solo visibles
+      const oW=tr.querySelector('.inp-orig-wrap'),dW=tr.querySelector('.inp-dest-wrap');
+      const fecha    = tr.querySelector('.inp-fecha').value||'';
+      const tipo     = tr.querySelector('.inp-tipo').value||'';
+      const modal    = tr.querySelector('.inp-modal-flujo')?.value||'';
+      const origen   = oW?oW.getValue():'';
+      const destino  = dW?dW.getValue():'';
+      const concepto = tr.querySelector('.inp-concepto').value||'';
+      const tasa     = tr.querySelector('.inp-tasa-flujo')?.value||'';
+      const monto    = parse(tr.querySelector('.inp-usd').value);
+      if(!monto) return;
+      if(tipo==='Ingreso') totI+=monto; else if(tipo==='Egreso') totE+=monto;
+      filas.push([fecha,tipo,modal,origen,destino,concepto,tasa,monto.toFixed(2)]);
+    });
+
+    saldo = totI - totE;
+    filas.push([]);
+    filas.push(['','','','','','Total Ingresos','',totI.toFixed(2)]);
+    filas.push(['','','','','','Total Egresos', '',totE.toFixed(2)]);
+    filas.push(['','','','','','Saldo Neto',    '',saldo.toFixed(2)]);
+
+    const csv = filas.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('
+');
+    const blob = new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    const nombreCaja = cajaSel||'Todas-las-Cajas';
+    const fechaHoy   = new Date().toISOString().slice(0,10);
+    a.href     = url;
+    a.download = `TCC_FlujoCaja_${nombreCaja}_${fechaHoy}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+    mostrarToast('✓ Exportado: '+a.download);
+  }
+
+  return{nuevoRegistro,guardarRegistro,agregarMov,agregarPagoBs,recalcular,_recalcBs,_recalcBsFila,limpiarFiltro,renderHistorial,_delReg,_limpiar,actualizarFecha,_selEC,leerFormulario,cargarFormulario,filtrarTabla,limpiarFiltroTabla,exportarCaja,actualizarSelectCajas};
 })();
 
 /* ═ Modal Nuevo Período ═ */
@@ -1085,7 +1315,7 @@ const EC = (function(){
         aplicaA:  '— General (sin asignar) —'
       });
       fila.style.background = 'rgba(74,124,89,.06)';
-      fila.title = 'Desde Flujo de Efectivo: '+(m.concepto||'');
+      fila.title = 'Desde Flujo de Caja: '+(m.concepto||'');
       tbody.appendChild(fila);
     });
 
@@ -1266,7 +1496,7 @@ const EMBEBIDOS=[{id:1000001,cliente:'FORUM',fecha:'2026-02-25',referencia:'',no
     <div class="modal-stripe"></div>
     <div class="modal-header">
       <div>
-        <div class="modal-tag">Flujo de Efectivo · Detalle</div>
+        <div class="modal-tag">Flujo de Caja · Detalle</div>
         <div class="modal-title" id="modal-caja-title">Historial de Caja</div>
       </div>
       <button class="modal-close" onclick="cerrarHistorialCaja()">×</button>
