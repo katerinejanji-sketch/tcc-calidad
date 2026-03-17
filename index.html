@@ -346,7 +346,7 @@ tbody td{padding:8px 8px 8px 0;font-size:14px;vertical-align:middle;}
     <div class="kpi-item"><span class="kpi-lbl">Ingresos USD</span><span class="kpi-val pos" id="f-kpi-ingr">$0.00</span></div>
     <div class="kpi-item"><span class="kpi-lbl">Egresos USD</span><span class="kpi-val neg" id="f-kpi-egr">$0.00</span></div>
     <div class="kpi-item"><span class="kpi-lbl">Flujo Neto</span><span class="kpi-val gold" id="f-kpi-neto">$0.00</span></div>
-    <div class="kpi-item"><span class="kpi-lbl">Cobrado en Bs</span><span class="kpi-val gold" id="f-kpi-bs">Bs 0.00</span></div>
+
   </div>
   <!-- Filtro -->
   <div class="sidebar-filtro">
@@ -418,19 +418,21 @@ tbody td{padding:8px 8px 8px 0;font-size:14px;vertical-align:middle;}
         </div>
         <table><thead><tr>
           <th style="width:9%">Fecha</th>
-          <th style="width:10%">Tipo</th>
-          <th style="width:13%">Modalidad</th>
+          <th style="width:8%">Tipo</th>
+          <th style="width:12%">Modalidad</th>
           <th style="width:13%">Origen / Fondo</th>
-          <th style="width:13%">Cuenta Destino</th>
-          <th style="width:22%">Concepto</th>
-          <th style="width:8%" class="r">Tasa Bs</th>
-          <th style="width:8%" class="r">Monto</th>
-          <th style="width:4%"></th>
+          <th style="width:13%">Destino</th>
+          <th style="width:24%">Concepto</th>
+          <th style="width:6%" class="r">Tasa</th>
+          <th style="width:7%" class="r" id="th-monto-bs">Bs</th>
+          <th style="width:7%" class="r">Monto $</th>
+          <th style="width:1%"></th>
         </tr></thead>
         <tbody id="f-tbody-mov"></tbody>
         <tfoot><tr class="tfoot-row">
           <td colspan="5"></td>
           <td><div class="tot-label">Ingresos</div><div class="tot-label">Egresos</div><div class="tot-label">Neto</div></td>
+          <td></td>
           <td></td>
           <td class="r"><div class="tot-val pos" id="f-tot-ingr">$0.00</div><div class="tot-val neg" id="f-tot-egr">$0.00</div><div class="tot-val gold" id="f-tot-neto-ft">$0.00</div></td>
           <td></td>
@@ -453,32 +455,8 @@ tbody td{padding:8px 8px 8px 0;font-size:14px;vertical-align:middle;}
       <div class="ec-tabs" id="f-ec-tabs"></div>
       <div class="ec-panel" id="f-ec-panel"><div class="ec-empty">Registra ingresos con un cliente como Origen para ver su estado aquí.</div></div>
 
-      <!-- PAGOS EN BOLÍVARES -->
-      <div class="section-header" style="margin-top:32px;">
-        <h2>Pagos en Bolívares</h2><div class="section-line"></div>
-        <button class="section-add-btn" onclick="F.agregarPagoBs()">+ Fila</button>
-      </div>
-      <div class="bs-tasa-bar">
-        <span class="bs-tasa-lbl">Tasa BCV</span>
-        <input type="number" class="bs-tasa-inp" id="f-tasa-bs" value="65.00" step="0.01" min="0" oninput="F.recalcularBs()">
-        <span class="bs-tasa-unit">Bs/USD</span>
-        <span class="bs-tasa-note">Solo aplica a esta sección</span>
-      </div>
-      <div class="table-wrap">
-        <table><thead><tr>
-          <th style="width:11%">Fecha</th><th style="width:16%">Cliente</th><th style="width:26%">Concepto</th>
-          <th style="width:12%" class="r">Monto Bs</th><th style="width:10%" class="r">Tasa</th>
-          <th style="width:12%" class="r">Equiv. USD</th><th style="width:11%">Modalidad</th><th style="width:2%"></th>
-        </tr></thead>
-        <tbody id="f-tbody-bs"></tbody>
-        <tfoot><tr>
-          <td colspan="3" style="padding:11px 8px 11px 0;border-top:2px solid var(--gold);"><span class="tot-label">Total Bs recibidos</span></td>
-          <td style="padding:11px 8px 11px 0;border-top:2px solid var(--gold);text-align:right;"><span class="total-anticipo" id="f-tot-bs">Bs 0.00</span></td>
-          <td style="border-top:2px solid var(--gold);"></td>
-          <td style="padding:11px 8px 11px 0;border-top:2px solid var(--gold);text-align:right;"><span class="total-value" id="f-tot-bs-usd">$0.00</span></td>
-          <td colspan="2" style="border-top:2px solid var(--gold);"></td>
-        </tr></tfoot></table>
-      </div>
+      <!-- Sección Pagos en Bs eliminada — la tasa y modalidad están en la tabla principal -->
+      <input type="hidden" id="f-tasa-bs" value="65.00">
       <div class="nota-section"><label>Notas</label><textarea id="f-nota" rows="2" placeholder="Observaciones del período…"></textarea></div>
     </div>
     <div class="footer"><div style="display:flex;align-items:center;gap:14px;">
@@ -806,7 +784,7 @@ const F = (function(){
     // ── Modalidad ──
     const tdM=document.createElement('td'); tdM.className='td-input';
     const selM=document.createElement('select'); selM.className='inp-modal-flujo';
-    selM.style.cssText='font-family:'Cormorant Garamond',serif;font-size:13px;color:var(--ink);background:transparent;border:none;width:100%;outline:none;cursor:pointer;';
+    selM.style.cssText="font-family:'Cormorant Garamond',serif;font-size:13px;color:var(--ink);background:transparent;border:none;width:100%;outline:none;cursor:pointer;";
     selM.innerHTML=MODS_ALL.map(m=>`<option value="${m}"${m===modal?' selected':''}>${m}</option>`).join('');
     selM.onchange=()=>{ actualizarCamposTasa(tr, selM.value); recalcular(); };
     tdM.appendChild(selM);
@@ -827,14 +805,31 @@ const F = (function(){
     // ── Tasa Bs (condicional) ──
     const tdTasa=document.createElement('td'); tdTasa.className='td-mono';
     const inpTasa=document.createElement('input'); inpTasa.type='number'; inpTasa.className='inp-tasa-flujo';
-    inpTasa.value=d.tasa||''; inpTasa.placeholder='—'; inpTasa.min='0'; inpTasa.step='0.01';
-    inpTasa.style.cssText='font-family:'DM Mono',monospace;font-size:11px;color:var(--warm-gray);background:transparent;border:none;width:100%;text-align:right;outline:none;';
-    inpTasa.oninput=recalcular; tdTasa.appendChild(inpTasa);
+    inpTasa.value=d.tasa ? parseFloat(d.tasa).toFixed(2) : '';
+    inpTasa.placeholder='—'; inpTasa.min='0'; inpTasa.step='0.01';
+    inpTasa.style.cssText="font-family:'DM Mono',monospace;font-size:11px;color:var(--warm-gray);background:transparent;border:none;width:100%;text-align:right;outline:none;";
+    inpTasa.oninput=()=>{ calcEquivUSD(tr); recalcular(); };
+    inpTasa.onblur=()=>{ if(inpTasa.value) inpTasa.value=parseFloat(inpTasa.value).toFixed(2); calcEquivUSD(tr); };
+    tdTasa.appendChild(inpTasa);
 
-    // ── Monto ──
+    // ── Monto Bs (oculto por defecto, visible solo cuando modalidad es Bs) ──
+    const tdBs=document.createElement('td'); tdBs.className='td-mono';
+    const inpBs=document.createElement('input'); inpBs.type='number'; inpBs.className='inp-monto-bs';
+    inpBs.value=d.monto_bs ? parseFloat(d.monto_bs).toFixed(2) : '';
+    inpBs.placeholder='0.00 Bs'; inpBs.min='0'; inpBs.step='0.01';
+    inpBs.style.cssText="font-family:'DM Mono',monospace;font-size:12px;color:var(--ink);background:transparent;border:none;width:100%;text-align:right;outline:none;";
+    inpBs.disabled=true; // starts disabled, enabled by actualizarCamposTasa
+    inpBs.oninput=()=>{ calcEquivUSD(tr); recalcular(); };
+    inpBs.onblur=()=>{ if(inpBs.value) inpBs.value=parseFloat(inpBs.value).toFixed(2); };
+    tdBs.appendChild(inpBs);
+
+    // ── Monto $ ──
     const tdU=document.createElement('td'); tdU.className='td-mono';
     const inpU=document.createElement('input'); inpU.type='number'; inpU.className='inp-usd';
-    inpU.value=d.monto_usd||''; inpU.min='0'; inpU.step='0.01'; inpU.oninput=recalcular;
+    inpU.value=d.monto_usd ? parseFloat(d.monto_usd).toFixed(2) : '';
+    inpU.min='0'; inpU.step='0.01'; inpU.placeholder='0.00';
+    inpU.oninput=recalcular;
+    inpU.onblur=()=>{ if(inpU.value) inpU.value=parseFloat(inpU.value).toFixed(2); recalcular(); };
     tdU.appendChild(inpU);
 
     // ── Eliminar ──
@@ -843,35 +838,81 @@ const F = (function(){
     btnX.onclick=()=>{ tr.remove(); recalcular(); F.actualizarSelectCajas(); };
     tdX.appendChild(btnX);
 
-    [tdF,tdT,tdM,tdO,tdD,tdC,tdTasa,tdU,tdX].forEach(td=>tr.appendChild(td));
+    // tdBs is ALWAYS in the DOM — visibility toggled by actualizarCamposTasa
+    // This keeps Monto $ locked in the last column regardless of modality
+    [tdF,tdT,tdM,tdO,tdD,tdC,tdTasa,tdBs,tdU,tdX].forEach(td=>tr.appendChild(td));
+    tr._tdBs = tdBs; // keep reference for actualizarCamposTasa
 
     // Aplicar estado visual inicial de tasa
     actualizarCamposTasa(tr, modal);
     return tr;
   }
 
+  // Calcula el equivalente USD desde Bs ÷ tasa (solo si Monto $ está vacío)
+  function calcEquivUSD(tr){
+    const inpBs   = tr.querySelector('.inp-monto-bs');
+    const inpTasa = tr.querySelector('.inp-tasa-flujo');
+    const inpUSD  = tr.querySelector('.inp-usd');
+    if(!inpBs || !inpTasa || !inpUSD) return;
+    const bs   = parseFloat(inpBs.value)   || 0;
+    const tasa = parseFloat(inpTasa.value) || 0;
+    // Auto-calcular siempre que haya Bs y tasa (el usuario puede sobrescribir)
+    if(bs > 0 && tasa > 0){
+      inpUSD.value = (bs / tasa).toFixed(2);
+      inpUSD.dispatchEvent(new Event('input'));
+    }
+  }
+
   function actualizarCamposTasa(tr, modal){
-    const tasaCel = tr.querySelector('.inp-tasa-flujo');
+    const tasaCel  = tr.querySelector('.inp-tasa-flujo');
     const montoCel = tr.querySelector('.inp-usd');
-    if(!tasaCel) return;
+    if(!tasaCel || !montoCel) return;
+
+    // Monto $ SIEMPRE editable, visible, activo — última columna fija
+    montoCel.readOnly = false;
+    montoCel.disabled = false;
+    montoCel.style.color = 'var(--ink)';
+    montoCel.style.fontStyle = 'normal';
+    montoCel.style.opacity = '1';
+    montoCel.title = '';
+
+    // tdBs is ALWAYS in the DOM — we just show/hide its content
+    // This ensures Monto $ always stays in the last column
+    const tdBs  = tr._tdBs;
+    const inpBs = tdBs ? tdBs.querySelector('.inp-monto-bs') : null;
+
+    // Make sure tdBs is inserted if not already (safety check)
+    const tdU = montoCel.closest('td');
+    if(tdBs && !tr.contains(tdBs)){
+      tr.insertBefore(tdBs, tdU);
+    }
+
     if(usaTasa(modal)){
-      // Activar tasa
+      // Modalidad Bs: activar tasa + campo Bs visible y editable
       tasaCel.disabled = false;
-      tasaCel.style.opacity='1';
-      tasaCel.placeholder='Bs/USD';
-      tasaCel.style.color='var(--ink)';
-      montoCel.placeholder='0.00 equiv.$';
-      montoCel.style.color='var(--warm-gray)';
-      montoCel.title='Se calcula automáticamente con la tasa';
+      tasaCel.style.opacity = '1';
+      tasaCel.placeholder = 'Bs/USD';
+      tasaCel.style.color = 'var(--ink)';
+      montoCel.placeholder = '0.00 (equiv.$)';
+      if(tdBs) tdBs.style.visibility = 'visible';
+      if(inpBs){
+        inpBs.disabled = false;
+        inpBs.style.opacity = '1';
+        inpBs.placeholder = '0.00 Bs';
+      }
     } else {
-      // Solo monto USD — ocultar tasa
+      // Modalidad USD: tasa desactivada, campo Bs invisible (pero celda ocupa espacio)
       tasaCel.disabled = true;
       tasaCel.value = '';
-      tasaCel.style.opacity='0.25';
-      tasaCel.placeholder='—';
-      montoCel.placeholder='0.00';
-      montoCel.style.color='var(--ink)';
-      montoCel.title='';
+      tasaCel.style.opacity = '0.2';
+      tasaCel.placeholder = '—';
+      montoCel.placeholder = '0.00';
+      if(tdBs) tdBs.style.visibility = 'hidden';
+      if(inpBs){
+        inpBs.value = '';
+        inpBs.disabled = true;
+        inpBs.style.opacity = '0';
+      }
     }
   }
 
@@ -960,9 +1001,9 @@ const F = (function(){
     tr.innerHTML=`<td class="td-input"><input type="date" class="inp-fecha-bs" value="${d.fecha||''}"></td><td class="td-input"><input type="text" class="inp-cli-bs" value="${d.cliente||''}" placeholder="Cliente…" list="lista-clientes-dl"></td><td class="td-input"><input type="text" class="inp-conc-bs" value="${d.concepto||''}" placeholder="Descripción…"></td><td class="td-mono"><input type="number" class="inp-bs" value="${d.monto_bs||''}" placeholder="0.00" min="0" step="0.01" oninput="F._recalcBsFila(this.closest('tr'));F._recalcBs()"></td><td class="td-mono"><input type="number" class="inp-tasa-bs" value="${d.tasa||''}" placeholder="${getTasaBs()}" min="0" step="0.01" oninput="F._recalcBsFila(this.closest('tr'));F._recalcBs()"></td><td class="td-mono"><input type="number" class="inp-eusd auto" value="${d.equiv_usd||''}" placeholder="auto" readonly></td><td class="td-input"><select class="inp-modal">${d.modalidad?`<option value="${d.modalidad}" selected>${d.modalidad}</option>`:''}<option>Efectivo USD</option><option>Efectivo Bs</option><option>Transferencia Bs</option><option>Zelle</option><option>Pago móvil</option><option>Depósito</option><option>Otro</option></select></td><td class="td-del"><button onclick="this.closest('tr').remove();F._recalcBs()">×</button></td>`;
     return tr;
   }
-  function _recalcBsFila(tr){ const bs=parse(tr.querySelector('.inp-bs').value),tasa=parse(tr.querySelector('.inp-tasa-bs').value)||getTasaBs(),eu=tr.querySelector('.inp-eusd'); eu.value=bs>0&&tasa>0?(bs/tasa).toFixed(2):''; }
-  function _recalcBs(){ const tasa=getTasaBs(); let totBs=0,totEquiv=0; document.querySelectorAll('#f-tbody-bs tr').forEach(tr=>{ _recalcBsFila(tr); totBs+=parse(tr.querySelector('.inp-bs').value); totEquiv+=parse(tr.querySelector('.inp-eusd').value); }); document.getElementById('f-tot-bs').textContent=fmtBs(totBs); document.getElementById('f-tot-bs-usd').textContent=fmt(totEquiv); document.getElementById('f-kpi-bs').textContent=fmtBs(totBs);
-    // Notificar al Estado de Cuenta cuando cambian los pagos Bs
+  function _recalcBsFila(tr){ /* stub — Bs section removed */ }
+  function _recalcBs(){
+    // Bs section removed — pagos en Bs ahora están en tabla principal
     if(typeof EC !== 'undefined') EC.actualizarFlujoData();
   }
   function agregarPagoBs(d){ document.getElementById('f-tbody-bs').appendChild(crearFilaBs(d)); if(!d) document.querySelector('#f-tbody-bs tr:last-child .inp-bs').focus(); _recalcBs(); }
@@ -978,11 +1019,12 @@ const F = (function(){
         destino:   dW?dW.getValue():'',
         concepto:  tr.querySelector('.inp-concepto').value,
         tasa:      parseFloat(tr.querySelector('.inp-tasa-flujo')?.value)||0,
+        monto_bs:  parseFloat(tr.querySelector('.inp-monto-bs')?.value)||0,
         monto_usd: parse(tr.querySelector('.inp-usd').value)
       });
     });
-    const pagosBs=[]; document.querySelectorAll('#f-tbody-bs tr').forEach(tr=>{ pagosBs.push({fecha:tr.querySelector('.inp-fecha-bs').value,cliente:tr.querySelector('.inp-cli-bs').value,concepto:tr.querySelector('.inp-conc-bs').value,monto_bs:parse(tr.querySelector('.inp-bs').value),tasa:parse(tr.querySelector('.inp-tasa-bs').value),equiv_usd:parse(tr.querySelector('.inp-eusd').value),modalidad:tr.querySelector('.inp-modal').value}); });
-    return{periodo:document.getElementById('f-periodo').value||'Sin período',fecha_ini:document.getElementById('f-fecha-ini').value,fecha_fin:document.getElementById('f-fecha-fin').value,responsable:document.getElementById('f-resp').value,tasa_bs:getTasaBs(),nota:document.getElementById('f-nota').value,movs,pagosBs,guardadoEn:new Date().toISOString()};
+    // pagosBs section removed
+    return{periodo:document.getElementById('f-periodo').value||'Sin período',fecha_ini:document.getElementById('f-fecha-ini').value,fecha_fin:document.getElementById('f-fecha-fin').value,responsable:document.getElementById('f-resp').value,nota:document.getElementById('f-nota').value,movs,guardadoEn:new Date().toISOString()};
   }
   function cargarFormulario(data){
     idActual=data.id;
@@ -994,8 +1036,7 @@ const F = (function(){
     document.getElementById('f-nota').value=data.nota||'';
     actualizarFecha();
     document.getElementById('f-tbody-mov').innerHTML=''; (data.movs||[]).forEach(d=>agregarMov(d));
-    document.getElementById('f-tbody-bs').innerHTML=''; (data.pagosBs||[]).forEach(d=>agregarPagoBs(d));
-    recalcular(); _recalcBs(); renderHistorial();
+    recalcular(); renderHistorial();
     window.scrollTo({top:0,behavior:'smooth'});
   }
   function guardarRegistro(){ const data=leerFormulario(),todos=loadF(); if(idActual!==null){const i=todos.findIndex(e=>e.id===idActual); if(i>=0)todos[i]={...data,id:idActual}; else todos.unshift({...data,id:idActual});} else{idActual=Date.now();todos.unshift({...data,id:idActual});} saveF(todos); renderHistorial(); mostrarToast('✓ Período guardado'); }
@@ -1021,10 +1062,10 @@ const F = (function(){
   function _limpiar(){
     idActual=null;
     ['f-periodo','f-fecha-fin','f-nota'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('f-resp').value='Katherine Janji'; document.getElementById('f-tasa-bs').value='65.00';
+    document.getElementById('f-resp').value='Katherine Janji';
     document.getElementById('f-fecha-ini').value=new Date().toISOString().split('T')[0];
-    actualizarFecha(); document.getElementById('f-tbody-mov').innerHTML=''; document.getElementById('f-tbody-bs').innerHTML='';
-    agregarMov(); agregarMov(); agregarMov(); agregarPagoBs(); recalcular(); _recalcBs(); renderHistorial();
+    actualizarFecha(); document.getElementById('f-tbody-mov').innerHTML='';
+    agregarMov(); agregarMov(); agregarMov(); recalcular(); renderHistorial();
     document.getElementById('f-periodo').focus();
   }
   // ── Actualizar select de cajas en filtro ──────────────────────
@@ -1108,7 +1149,7 @@ const F = (function(){
     const periodo = document.getElementById('f-periodo')?.value||'';
 
     const filas = [];
-    const header = ['Fecha','Tipo','Modalidad','Origen','Destino','Concepto','Tasa Bs','Monto USD'];
+    const header = ['Fecha','Tipo','Modalidad','Origen','Destino','Concepto','Tasa Bs','Monto Bs','Monto USD'];
     filas.push(header);
 
     let saldo=0, totI=0, totE=0;
@@ -1122,10 +1163,11 @@ const F = (function(){
       const destino  = dW?dW.getValue():'';
       const concepto = tr.querySelector('.inp-concepto').value||'';
       const tasa     = tr.querySelector('.inp-tasa-flujo')?.value||'';
+      const montoBs  = parseFloat(tr.querySelector('.inp-monto-bs')?.value)||0;
       const monto    = parse(tr.querySelector('.inp-usd').value);
       if(!monto) return;
       if(tipo==='Ingreso') totI+=monto; else if(tipo==='Egreso') totE+=monto;
-      filas.push([fecha,tipo,modal,origen,destino,concepto,tasa,monto.toFixed(2)]);
+      filas.push([fecha,tipo,modal,origen,destino,concepto,tasa,montoBs>0?montoBs.toFixed(2):'',monto.toFixed(2)]);
     });
 
     saldo = totI - totE;
@@ -1134,8 +1176,7 @@ const F = (function(){
     filas.push(['','','','','','Total Egresos', '',totE.toFixed(2)]);
     filas.push(['','','','','','Saldo Neto',    '',saldo.toFixed(2)]);
 
-    const csv = filas.map(r=>r.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('
-');
+    const csv = filas.map(r=>r.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');
     const blob = new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
@@ -1276,21 +1317,20 @@ const EC = (function(){
     );
     const movsUSD = entry ? entry[1] : [];
 
-    // ── FUENTE 2: Pagos en Bolívares del Flujo donde cliente = este cliente ──
+    // ── FUENTE 2: Pagos en Bs desde tabla principal (modalidad Bs) ──
     const movsBs = [];
-    document.querySelectorAll('#f-tbody-bs tr').forEach(tr=>{
-      const clienteBs = tr.querySelector('.inp-cli-bs')?.value.trim() || '';
-      // Coincidencia flexible con el nombre del cliente
-      if(!clienteBs) return;
-      if(clienteBs.toLowerCase()===cli.toLowerCase() ||
-         clienteBs.toLowerCase().includes(cli.toLowerCase()) ||
-         cli.toLowerCase().includes(clienteBs.toLowerCase())){
-        const fecha    = tr.querySelector('.inp-fecha-bs')?.value || '';
-        const concepto = tr.querySelector('.inp-conc-bs')?.value || 'Pago en Bs';
-        const montoBs  = parseFloat(tr.querySelector('.inp-bs')?.value) || 0;
-        const equivUSD = parseFloat(tr.querySelector('.inp-eusd')?.value) || 0;
-        const modal    = tr.querySelector('.inp-modal')?.value || 'Pago Bs';
-        if(montoBs > 0) movsBs.push({fecha, concepto, montoBs, equivUSD, modal});
+    document.querySelectorAll('#f-tbody-mov tr').forEach(tr=>{
+      const modal = tr.querySelector('.inp-modal-flujo')?.value || '';
+      if(!['Transferencia Bs','Pago móvil','Mercados','Efectivo Bs','Depósito Bs'].some(m=>modal.includes(m.split(' ')[0]))) return;
+      const orW = tr.querySelector('.inp-orig-wrap');
+      const origen = orW ? orW.getValue() : '';
+      if(!origen) return;
+      if(origen.toLowerCase()===cli.toLowerCase() || origen.toLowerCase().includes(cli.toLowerCase()) || cli.toLowerCase().includes(origen.toLowerCase())){
+        const fecha    = tr.querySelector('.inp-fecha')?.value || '';
+        const concepto = tr.querySelector('.inp-concepto')?.value || 'Pago Bs';
+        const tasa     = parseFloat(tr.querySelector('.inp-tasa-flujo')?.value) || 0;
+        const monto    = parseFloat(tr.querySelector('.inp-usd')?.value) || 0;
+        if(monto > 0) movsBs.push({fecha, concepto, montoBs: tasa>0?monto*tasa:0, equivUSD: monto, modal});
       }
     });
 
@@ -1473,7 +1513,7 @@ const EMBEBIDOS=[{id:1000001,cliente:'FORUM',fecha:'2026-02-25',referencia:'',no
 
   // Inicializar Flujo
   document.getElementById('f-fecha-ini').value=new Date().toISOString().split('T')[0];
-  F.actualizarFecha(); F.agregarMov(); F.agregarMov(); F.agregarMov(); F.agregarPagoBs(); F.recalcular(); F._recalcBs(); F.renderHistorial();
+  F.actualizarFecha(); F.agregarMov(); F.agregarMov(); F.agregarMov(); F.recalcular(); F.renderHistorial();
 
   // Inicializar EC
   document.getElementById('ec-fecha').value=new Date().toISOString().split('T')[0];
